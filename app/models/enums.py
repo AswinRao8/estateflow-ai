@@ -1,0 +1,74 @@
+from enum import StrEnum
+
+
+class LeadState(StrEnum):
+    """Lifecycle states a lead moves through from first contact to closure."""
+    NEW_INQUIRY = "NEW_INQUIRY"
+    CONTEXT_IDENTIFIED = "CONTEXT_IDENTIFIED"
+    QUALIFYING = "QUALIFYING"
+    MATCHING_PROPERTIES = "MATCHING_PROPERTIES"
+    VIEWING_INTEREST = "VIEWING_INTEREST"
+    VIEWING_SCHEDULED = "VIEWING_SCHEDULED"
+    POST_VIEWING = "POST_VIEWING"
+    NEGOTIATION = "NEGOTIATION"
+    HUMAN_ACTIVE = "HUMAN_ACTIVE"
+    FOLLOW_UP = "FOLLOW_UP"
+    CLOSED_WON = "CLOSED_WON"
+    CLOSED_LOST = "CLOSED_LOST"
+
+
+class IntentType(StrEnum):
+    """Output categories of the intent classifier."""
+    LISTING_INQUIRY = "LISTING_INQUIRY"
+    BUYER_QUALIFICATION = "BUYER_QUALIFICATION"
+    VIEWING_REQUEST = "VIEWING_REQUEST"
+    FOLLOW_UP = "FOLLOW_UP"
+    HUMAN_REQUESTED = "HUMAN_REQUESTED"
+    GENERAL_INQUIRY = "GENERAL_INQUIRY"
+    OUT_OF_SCOPE = "OUT_OF_SCOPE"
+
+
+class PropertyType(StrEnum):
+    HOUSE = "HOUSE"
+    APARTMENT = "APARTMENT"
+    LAND = "LAND"
+    VILLA = "VILLA"
+    PENTHOUSE = "PENTHOUSE"
+    COMMERCIAL = "COMMERCIAL"
+
+
+class PropertyStatus(StrEnum):
+    AVAILABLE = "AVAILABLE"
+    UNDER_OFFER = "UNDER_OFFER"
+    SOLD = "SOLD"
+    RENTED = "RENTED"
+    INACTIVE = "INACTIVE"
+
+
+class TransactionType(StrEnum):
+    SALE = "SALE"
+    RENTAL = "RENTAL"
+
+
+class BuyerType(StrEnum):
+    RESIDENTIAL = "RESIDENTIAL"
+    LAND = "LAND"
+    EXPAT = "EXPAT"
+    INVESTOR = "INVESTOR"
+    RENTER = "RENTER"
+    SELLER = "SELLER"
+    EXPLORATORY = "EXPLORATORY"
+
+
+class MessageDirection(StrEnum):
+    INBOUND = "inbound"
+    OUTBOUND = "outbound"
+
+
+class HandoffReason(StrEnum):
+    NEGOTIATION = "NEGOTIATION"
+    LEGAL_COMPLEXITY = "LEGAL_COMPLEXITY"
+    LOW_AI_CONFIDENCE = "LOW_AI_CONFIDENCE"
+    USER_REQUESTED = "USER_REQUESTED"
+    HIGH_INTENT_BUYER = "HIGH_INTENT_BUYER"
+    AGENT_INITIATED = "AGENT_INITIATED"

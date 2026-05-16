@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/Scripts/pip install *)",
+      "Bash(venv/Scripts/python -m pytest tests/unit/test_health.py -v)",
+      "Bash(venv/Scripts/python -c \"from app.main import create_app; app = create_app\\(\\); routes = [r.path for r in app.routes]; print\\('\\\\n'.join\\(sorted\\(routes\\)\\)\\)\")",
+      "Bash(venv/Scripts/python -c \"from app.models.enums import LeadState, IntentType, PropertyType; print\\('LeadStates:', [s.value for s in LeadState]\\); print\\('Intents:', [i.value for i in IntentType]\\)\")",
+      "Bash(venv/Scripts/python -m pytest tests/ -v)",
+      "Bash(venv/Scripts/python -c \"from app.database import Base, engine, SessionFactory, TimestampMixin, check_database_connection, get_db_session; print\\('engine:', engine.url.render_as_string\\(hide_password=True\\)\\); print\\('Base metadata tables:', list\\(Base.metadata.tables.keys\\(\\)\\) or '\\(empty — no models registered yet\\)'\\)\")",
+      "Bash(venv/Scripts/python -c \"from app.dependencies import SettingsDep, DbSessionDep; print\\('SettingsDep:', SettingsDep\\); print\\('DbSessionDep:', DbSessionDep\\)\")",
+      "Bash(venv/Scripts/python -m alembic check)",
+      "Bash(venv/Scripts/python -m alembic history)",
+      "Bash(venv/Scripts/python -c ' *)",
+      "Bash(venv/Scripts/python -m pytest tests/ -v --tb=short)"
+    ]
+  }
+}
