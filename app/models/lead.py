@@ -102,8 +102,10 @@ class Lead(Base, TimestampMixin):
     # Stores progressive qualification answers: budget, location prefs, timeline, etc.
     # Schema-free at MVP — structured extraction happens in Phase 6.
     qualification_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # Listing reference from the entry URL, populated if the lead arrived via a listing link.
-    source_listing_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Resolved listing reference code from the entry URL (e.g. "REF-001"), populated
+    # if the lead arrived via a click-to-chat link and the reference code could be
+    # extracted. This is a reference code, not a raw URL.
+    source_listing_ref_code: Mapped[str | None] = mapped_column(String(200), nullable=True)
     is_human_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
@@ -118,12 +120,11 @@ class LeadRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    tenant_id: str
     phone_number: str
     state: LeadState
     buyer_type: BuyerType | None = None
     qualification_data: dict | None = None
-    source_listing_ref: str | None = None
+    source_listing_ref_code: str | None = None
     is_human_active: bool
     assigned_agent_id: str | None = None
     created_at: datetime
@@ -132,8 +133,7 @@ class LeadRead(BaseModel):
 
 class LeadCreate(BaseModel):
     phone_number: str
-    tenant_id: str
-    source_listing_ref: str | None = None
+    source_listing_ref_code: str | None = None
 
 
 class LeadQualificationUpdate(BaseModel):

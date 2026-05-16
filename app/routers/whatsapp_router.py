@@ -52,7 +52,6 @@ async def receive_inbound_message(
             result = await process_inbound_message(
                 db,
                 message=msg,
-                tenant_id=settings.default_tenant_id,
             )
             if result.is_human_active:
                 logger.info(

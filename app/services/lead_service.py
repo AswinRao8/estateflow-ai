@@ -3,14 +3,19 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.exceptions import InvalidStateTransitionError, LeadNotFoundError
-from app.models.enums import BuyerType, LeadState
-from app.models.lead import Lead, LeadCreate, LeadQualificationUpdate, VALID_LEAD_TRANSITIONS
+from app.models.enums import LeadState
+from app.models.lead import Lead, LeadQualificationUpdate, VALID_LEAD_TRANSITIONS
 
 
 async def get_or_create_lead(
-    db: AsyncSession, *, tenant_id: str, phone_number: str, source_listing_ref: str | None = None
+    db: AsyncSession,
+    *,
+    phone_number: str,
+    source_listing_ref_code: str | None = None,
 ) -> Lead:
+    tenant_id = get_settings().default_tenant_id
     result = await db.execute(
         select(Lead).where(Lead.tenant_id == tenant_id, Lead.phone_number == phone_number)
     )
@@ -20,14 +25,15 @@ async def get_or_create_lead(
     lead = Lead(
         tenant_id=tenant_id,
         phone_number=phone_number,
-        source_listing_ref=source_listing_ref,
+        source_listing_ref_code=source_listing_ref_code,
     )
     db.add(lead)
     await db.commit()
     return lead
 
 
-async def get_lead(db: AsyncSession, *, lead_id: uuid.UUID, tenant_id: str) -> Lead:
+async def get_lead(db: AsyncSession, *, lead_id: uuid.UUID) -> Lead:
+    tenant_id = get_settings().default_tenant_id
     result = await db.execute(
         select(Lead).where(Lead.id == lead_id, Lead.tenant_id == tenant_id)
     )
@@ -38,8 +44,9 @@ async def get_lead(db: AsyncSession, *, lead_id: uuid.UUID, tenant_id: str) -> L
 
 
 async def list_leads(
-    db: AsyncSession, *, tenant_id: str, limit: int = 50, offset: int = 0
+    db: AsyncSession, *, limit: int = 50, offset: int = 0
 ) -> list[Lead]:
+    tenant_id = get_settings().default_tenant_id
     result = await db.execute(
         select(Lead)
         .where(Lead.tenant_id == tenant_id)
@@ -51,9 +58,9 @@ async def list_leads(
 
 
 async def advance_state(
-    db: AsyncSession, *, lead_id: uuid.UUID, tenant_id: str, to_state: LeadState
+    db: AsyncSession, *, lead_id: uuid.UUID, to_state: LeadState
 ) -> Lead:
-    lead = await get_lead(db, lead_id=lead_id, tenant_id=tenant_id)
+    lead = await get_lead(db, lead_id=lead_id)
     from_state = LeadState(lead.state)
     if to_state not in VALID_LEAD_TRANSITIONS.get(from_state, frozenset()):
         raise InvalidStateTransitionError(from_state, to_state)
@@ -67,18 +74,18 @@ async def advance_state(
 
 
 async def set_human_active(
-    db: AsyncSession, *, lead_id: uuid.UUID, tenant_id: str, agent_id: str
+    db: AsyncSession, *, lead_id: uuid.UUID, agent_id: str
 ) -> Lead:
-    lead = await advance_state(db, lead_id=lead_id, tenant_id=tenant_id, to_state=LeadState.HUMAN_ACTIVE)
+    lead = await advance_state(db, lead_id=lead_id, to_state=LeadState.HUMAN_ACTIVE)
     lead.assigned_agent_id = agent_id
     await db.commit()
     return lead
 
 
 async def release_human(
-    db: AsyncSession, *, lead_id: uuid.UUID, tenant_id: str, to_state: LeadState
+    db: AsyncSession, *, lead_id: uuid.UUID, to_state: LeadState
 ) -> Lead:
-    lead = await get_lead(db, lead_id=lead_id, tenant_id=tenant_id)
+    lead = await get_lead(db, lead_id=lead_id)
     if LeadState(lead.state) != LeadState.HUMAN_ACTIVE:
         raise InvalidStateTransitionError(lead.state, to_state)
     if to_state not in VALID_LEAD_TRANSITIONS[LeadState.HUMAN_ACTIVE]:
@@ -94,10 +101,9 @@ async def update_qualification(
     db: AsyncSession,
     *,
     lead_id: uuid.UUID,
-    tenant_id: str,
     update: LeadQualificationUpdate,
 ) -> Lead:
-    lead = await get_lead(db, lead_id=lead_id, tenant_id=tenant_id)
+    lead = await get_lead(db, lead_id=lead_id)
     if update.buyer_type is not None:
         lead.buyer_type = update.buyer_type
     if update.qualification_data is not None:

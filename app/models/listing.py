@@ -40,7 +40,6 @@ class ListingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    tenant_id: str
     reference_code: str
     title: str
     property_type: PropertyType
@@ -61,7 +60,6 @@ class ListingRead(BaseModel):
 
 
 class ListingCreate(BaseModel):
-    tenant_id: str
     reference_code: str
     title: str
     property_type: PropertyType

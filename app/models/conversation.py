@@ -33,7 +33,6 @@ class MessageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    tenant_id: str
     session_id: uuid.UUID
     lead_id: uuid.UUID
     direction: MessageDirection
@@ -45,7 +44,6 @@ class MessageRead(BaseModel):
 
 
 class MessageCreate(BaseModel):
-    tenant_id: str
     session_id: uuid.UUID
     lead_id: uuid.UUID
     direction: MessageDirection

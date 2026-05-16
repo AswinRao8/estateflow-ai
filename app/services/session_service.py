@@ -4,17 +4,18 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.session import Session, SessionCreate
+from app.config import get_settings
+from app.models.session import Session
 
 
 async def get_or_create_active_session(
     db: AsyncSession,
     *,
-    tenant_id: str,
     lead_id: uuid.UUID,
     channel: str = "whatsapp",
-    listing_ref: str | None = None,
+    listing_ref_code: str | None = None,
 ) -> Session:
+    tenant_id = get_settings().default_tenant_id
     result = await db.execute(
         select(Session).where(
             Session.tenant_id == tenant_id,
@@ -29,7 +30,7 @@ async def get_or_create_active_session(
         tenant_id=tenant_id,
         lead_id=lead_id,
         channel=channel,
-        listing_ref=listing_ref,
+        listing_ref_code=listing_ref_code,
         last_activity_at=datetime.now(timezone.utc),
     )
     db.add(session)
@@ -38,8 +39,9 @@ async def get_or_create_active_session(
 
 
 async def get_session(
-    db: AsyncSession, *, session_id: uuid.UUID, tenant_id: str
+    db: AsyncSession, *, session_id: uuid.UUID
 ) -> Session | None:
+    tenant_id = get_settings().default_tenant_id
     result = await db.execute(
         select(Session).where(Session.id == session_id, Session.tenant_id == tenant_id)
     )
@@ -47,8 +49,9 @@ async def get_session(
 
 
 async def get_active_session(
-    db: AsyncSession, *, lead_id: uuid.UUID, tenant_id: str
+    db: AsyncSession, *, lead_id: uuid.UUID
 ) -> Session | None:
+    tenant_id = get_settings().default_tenant_id
     result = await db.execute(
         select(Session).where(
             Session.lead_id == lead_id,

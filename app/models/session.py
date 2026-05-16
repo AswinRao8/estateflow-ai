@@ -18,8 +18,9 @@ class Session(Base, TimestampMixin):
     )
     # Channel from which the session originated (e.g. "whatsapp").
     channel: Mapped[str] = mapped_column(String(50), nullable=False, default="whatsapp")
-    # Reference to the listing URL that initiated this session, if any.
-    listing_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Resolved listing reference code that initiated this session, if any.
+    # This is a reference code (e.g. "REF-001"), not a raw URL.
+    listing_ref_code: Mapped[str | None] = mapped_column(String(200), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Wall-clock timestamp of the most recent inbound or outbound message.
     last_activity_at: Mapped[datetime | None] = mapped_column(
@@ -31,10 +32,9 @@ class SessionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    tenant_id: str
     lead_id: uuid.UUID
     channel: str
-    listing_ref: str | None = None
+    listing_ref_code: str | None = None
     is_active: bool
     last_activity_at: datetime | None = None
     created_at: datetime
@@ -42,7 +42,6 @@ class SessionRead(BaseModel):
 
 
 class SessionCreate(BaseModel):
-    tenant_id: str
     lead_id: uuid.UUID
     channel: str = "whatsapp"
-    listing_ref: str | None = None
+    listing_ref_code: str | None = None

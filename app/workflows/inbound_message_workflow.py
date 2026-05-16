@@ -8,6 +8,7 @@ from app.models.enums import MessageDirection
 from app.models.lead import Lead
 from app.models.session import Session
 from app.services import conversation_service, lead_service, session_service
+from app.utils.listing_ref import extract_listing_ref_code
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -25,31 +26,29 @@ async def process_inbound_message(
     db: AsyncSession,
     *,
     message: InboundMessage,
-    tenant_id: str,
 ) -> InboundPipelineResult:
     """Orchestrate the core inbound pipeline: lead → session → message persistence.
 
     Enforces the human-active check before any AI path is entered.
     Phase 4 adds intent classification and workflow routing after this point.
     """
+    listing_ref_code = extract_listing_ref_code(message.listing_ref_url)
+
     lead = await lead_service.get_or_create_lead(
         db,
-        tenant_id=tenant_id,
         phone_number=message.phone_number,
-        source_listing_ref=message.listing_ref,
+        source_listing_ref_code=listing_ref_code,
     )
 
     session = await session_service.get_or_create_active_session(
         db,
-        tenant_id=tenant_id,
         lead_id=lead.id,
-        listing_ref=message.listing_ref,
+        listing_ref_code=listing_ref_code,
     )
 
     stored_message = await conversation_service.save_message(
         db,
         data=MessageCreate(
-            tenant_id=tenant_id,
             session_id=session.id,
             lead_id=lead.id,
             direction=MessageDirection.INBOUND,

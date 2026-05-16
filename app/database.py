@@ -28,13 +28,7 @@ SessionFactory = async_sessionmaker(
 
 
 class Base(DeclarativeBase):
-    """Declarative base for all SQLAlchemy ORM models.
-
-    All domain models (Lead, Listing, Session, etc.) inherit from this.
-    Every domain model must also declare a tenant_id column — this is a
-    convention enforced by code review, not by the base class itself,
-    because not all models require tenant isolation (e.g. internal lookup tables).
-    """
+    """Declarative base for all SQLAlchemy ORM models."""
     pass
 
 

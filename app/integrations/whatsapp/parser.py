@@ -19,7 +19,7 @@ def parse_inbound_payload(payload: dict) -> list[InboundMessage]:
                 body = (raw.get("text") or {}).get("body", "").strip()
                 if not body:
                     continue
-                listing_ref = _extract_listing_ref(raw)
+                listing_ref_url = _extract_listing_ref_url(raw)
                 try:
                     messages.append(InboundMessage(
                         phone_number=raw["from"],
@@ -28,7 +28,7 @@ def parse_inbound_payload(payload: dict) -> list[InboundMessage]:
                         timestamp=datetime.fromtimestamp(
                             int(raw["timestamp"]), tz=timezone.utc
                         ),
-                        listing_ref=listing_ref,
+                        listing_ref_url=listing_ref_url,
                     ))
                 except (KeyError, ValueError, TypeError):
                     continue
@@ -56,12 +56,12 @@ def parse_delivery_status(payload: dict) -> list[DeliveryStatus]:
     return statuses
 
 
-def _extract_listing_ref(raw_message: dict) -> str | None:
-    """Pull listing_ref from a WhatsApp referral object if present.
+def _extract_listing_ref_url(raw_message: dict) -> str | None:
+    """Pull the referral source_url from a WhatsApp message if present.
 
     Referrals are attached to messages that originate from click-to-chat links
-    or QR codes. The source_url is stored as-is; session creation resolves it
-    to a listing reference code.
+    or QR codes. Returns the raw URL as a transport artifact — callers must resolve
+    this to a listing reference code before writing to the domain layer.
     """
     referral = raw_message.get("referral")
     if not referral:
