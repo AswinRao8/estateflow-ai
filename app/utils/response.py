@@ -1,9 +1,9 @@
 import re
 
 _MARKDOWN_HEADERS = re.compile(r"^#{1,6}\s+", re.MULTILINE)
-_MARKDOWN_BOLD = re.compile(r"\*\*(.+?)\*\*", re.DOTALL)
-_MARKDOWN_ITALIC = re.compile(r"\*(.+?)\*", re.DOTALL)
-_MARKDOWN_CODE = re.compile(r"`(.+?)`", re.DOTALL)
+_MARKDOWN_BOLD = re.compile(r"\*\*(.+?)\*\*")
+_MARKDOWN_ITALIC = re.compile(r"\*(.+?)\*")
+_MARKDOWN_CODE = re.compile(r"`(.+?)`")
 _MARKDOWN_BULLETS = re.compile(r"^[*\-]\s+", re.MULTILINE)
 _PRICE_LIKE = re.compile(r"\b(\d[\d,\.]{4,})\b")
 
