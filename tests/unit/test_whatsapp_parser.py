@@ -47,7 +47,7 @@ def test_parses_text_message():
     assert m.phone_number == "+15550001234"
     assert m.message_id == "wamid.test001"
     assert m.body == "I'm interested"
-    assert m.listing_ref is None
+    assert m.listing_ref_url is None
     assert isinstance(m.timestamp, datetime)
     assert m.timestamp.tzinfo == timezone.utc
 
@@ -107,12 +107,12 @@ def test_skips_malformed_entry_without_raising():
 def test_extracts_listing_ref_from_referral():
     referral = {"source_url": "https://agency.com/listings/villa-123", "source_type": "url"}
     msgs = parse_inbound_payload(_text_payload(referral=referral))
-    assert msgs[0].listing_ref == "https://agency.com/listings/villa-123"
+    assert msgs[0].listing_ref_url == "https://agency.com/listings/villa-123"
 
 
 def test_listing_ref_none_when_no_referral():
     msgs = parse_inbound_payload(_text_payload())
-    assert msgs[0].listing_ref is None
+    assert msgs[0].listing_ref_url is None
 
 
 def test_parses_multiple_messages_in_one_payload():
