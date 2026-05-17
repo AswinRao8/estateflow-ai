@@ -93,3 +93,21 @@ def test_listing_inquiry_workflow_has_no_direct_sqlalchemy_calls():
     assert "db.execute" not in source
     assert "db.add(" not in source
     assert "select(" not in source
+
+
+# ---------------------------------------------------------------------------
+# qualification_workflow — no direct Anthropic, no direct SQLAlchemy
+# ---------------------------------------------------------------------------
+
+def test_qualification_workflow_has_no_anthropic_import():
+    from app.workflows import qualification_workflow
+    source = inspect.getsource(qualification_workflow)
+    assert "anthropic" not in source, "Workflow must call qualification_service, not the SDK directly"
+
+
+def test_qualification_workflow_has_no_direct_sqlalchemy_calls():
+    from app.workflows import qualification_workflow
+    source = inspect.getsource(qualification_workflow)
+    assert "db.execute" not in source
+    assert "db.add(" not in source
+    assert "select(" not in source

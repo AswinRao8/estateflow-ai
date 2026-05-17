@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from app.models.enums import IntentType, LeadState, WorkflowType
+from app.models.enums import BuyerType, IntentType, LeadState, WorkflowType
 from app.models.lead import Lead
 from app.models.listing import Listing
 from app.models.session import Session
@@ -56,3 +56,17 @@ class ListingResponseResult:
     """
     response_text: str
     viewing_interest_detected: bool = False
+
+
+@dataclass
+class QualificationResult:
+    """Output of a single buyer qualification AI turn.
+
+    extracted_data contains only new field values found in the current message.
+    The caller merges these into the existing lead.qualification_data — this
+    dataclass never carries the full profile, only the delta.
+    """
+    next_question: str
+    extracted_data: dict
+    buyer_type: BuyerType | None = None
+    qualification_complete: bool = False
