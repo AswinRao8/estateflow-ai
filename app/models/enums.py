@@ -72,3 +72,13 @@ class HandoffReason(StrEnum):
     USER_REQUESTED = "USER_REQUESTED"
     HIGH_INTENT_BUYER = "HIGH_INTENT_BUYER"
     AGENT_INITIATED = "AGENT_INITIATED"
+
+
+class WorkflowType(StrEnum):
+    LISTING_INQUIRY = "listing_inquiry"
+    QUALIFICATION = "qualification"
+    VIEWING_REQUEST = "viewing_request"
+    GENERAL_INQUIRY = "general_inquiry"
+    CLARIFICATION = "clarification"
+    OUT_OF_SCOPE = "out_of_scope"
+    ESCALATION = "escalation"

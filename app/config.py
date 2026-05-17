@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # Tenant (V1 single-tenant — all inbound messages map to this tenant)
     default_tenant_id: str = "default"
 
+    # AI — Anthropic SDK (Phase 4)
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-6"
+
     # Market configuration — deployment-level, not per-request
     market: MarketConfig = MarketConfig()
 
