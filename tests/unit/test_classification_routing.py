@@ -13,7 +13,7 @@ import pytest
 
 from app.models.context import ClassificationResult, ConversationContext
 from app.models.enums import IntentType, LeadState, WorkflowType
-from app.services.conversation_service import (
+from app.services.ai_service import (
     _build_classification_prompt,
     _parse_classification_response,
     classify_intent,
@@ -196,7 +196,7 @@ async def test_classify_intent_returns_fallback_on_timeout():
     async def _raise_timeout(*args, **kwargs):
         raise asyncio.TimeoutError()
 
-    with patch("app.services.conversation_service.asyncio.wait_for", side_effect=_raise_timeout):
+    with patch("app.services.ai_service.asyncio.wait_for", side_effect=_raise_timeout):
         result = await classify_intent(ctx)
 
     assert result.intent == IntentType.GENERAL_INQUIRY
@@ -209,7 +209,7 @@ async def test_classify_intent_returns_fallback_on_api_exception():
     ctx = _fake_context()
 
     with patch(
-        "app.services.conversation_service._call_classification_api",
+        "app.services.ai_service._call_classification_api",
         new_callable=AsyncMock,
         side_effect=RuntimeError("API unreachable"),
     ):

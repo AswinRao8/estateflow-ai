@@ -75,3 +75,21 @@ def test_escalation_workflow_calls_service_not_db_directly():
     assert "db.execute" not in source
     assert "db.add(" not in source
     assert "select(" not in source
+
+
+# ---------------------------------------------------------------------------
+# listing_inquiry_workflow — no direct Anthropic, no direct SQLAlchemy
+# ---------------------------------------------------------------------------
+
+def test_listing_inquiry_workflow_has_no_anthropic_import():
+    from app.workflows import listing_inquiry_workflow
+    source = inspect.getsource(listing_inquiry_workflow)
+    assert "anthropic" not in source, "Workflow must call ai_service, not the SDK directly"
+
+
+def test_listing_inquiry_workflow_has_no_direct_sqlalchemy_calls():
+    from app.workflows import listing_inquiry_workflow
+    source = inspect.getsource(listing_inquiry_workflow)
+    assert "db.execute" not in source
+    assert "db.add(" not in source
+    assert "select(" not in source

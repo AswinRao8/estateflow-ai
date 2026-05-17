@@ -13,9 +13,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.integrations.whatsapp.types import InboundMessage
-from app.models.context import ClassificationResult
-from app.models.enums import IntentType, LeadState, MessageDirection, WorkflowType
-from app.services import conversation_service, lead_service
+from app.models.context import ClassificationResult, ListingResponseResult
+from app.models.enums import IntentType, LeadState, MessageDirection, PropertyType, TransactionType, WorkflowType
+from app.models.listing import ListingCreate
+from app.services import conversation_service, lead_service, listing_service
 from app.workflows.inbound_message_workflow import process_inbound_message
 
 
@@ -60,6 +61,21 @@ def _patch_notify(provider_id: str = "wamid.mock001"):
         "app.services.notification_service.send_whatsapp_text",
         new_callable=AsyncMock,
         return_value=provider_id,
+    )
+
+
+def _patch_listing_ai(
+    response_text: str = "It has 4 bedrooms and a pool.",
+    viewing_interest_detected: bool = False,
+):
+    """Context manager: mock ai_service.generate_listing_response."""
+    return patch(
+        "app.services.ai_service.generate_listing_response",
+        new_callable=AsyncMock,
+        return_value=ListingResponseResult(
+            response_text=response_text,
+            viewing_interest_detected=viewing_interest_detected,
+        ),
     )
 
 
@@ -356,3 +372,77 @@ async def test_outbound_message_uses_provider_id_from_notification_service(db):
     messages = await conversation_service.get_session_messages(db, session_id=result.session.id)
     outbound = [m for m in messages if m.direction == MessageDirection.OUTBOUND]
     assert outbound[0].provider_message_id == "wamid.expected123"
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — Listing-aware responses
+# ---------------------------------------------------------------------------
+
+async def _create_test_listing(db, reference_code: str = "villa-88") -> None:
+    await listing_service.create_listing(
+        db,
+        data=ListingCreate(
+            reference_code=reference_code,
+            title="Ocean View Villa",
+            property_type=PropertyType.VILLA,
+            transaction_type=TransactionType.SALE,
+            price=1_500_000.0,
+            bedrooms=4,
+            bathrooms=3,
+            location_area="Palm Beach",
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_listing_inquiry_dispatches_to_ai_and_persists_outbound(db):
+    phone = _unique_phone()
+    await _create_test_listing(db)
+
+    with _patch_classify(IntentType.LISTING_INQUIRY, confidence=0.95), _patch_notify(), \
+            _patch_listing_ai(response_text="It has 4 bedrooms and a pool."):
+        result = await process_inbound_message(
+            db,
+            message=_make_message(phone, "Tell me about the villa", listing_ref_url="https://agency.com/listings/villa-88"),
+        )
+
+    assert result.workflow_type == WorkflowType.LISTING_INQUIRY
+    messages = await conversation_service.get_session_messages(db, session_id=result.session.id)
+    outbound = [m for m in messages if m.direction == MessageDirection.OUTBOUND]
+    assert len(outbound) == 1
+    assert "4 bedrooms" in outbound[0].body
+
+
+@pytest.mark.asyncio
+async def test_listing_inquiry_advances_state_on_viewing_interest(db):
+    phone = _unique_phone()
+    await _create_test_listing(db, reference_code="apt-99")
+
+    with _patch_classify(IntentType.LISTING_INQUIRY, confidence=0.95), _patch_notify(), \
+            _patch_listing_ai(response_text="I can arrange a viewing!", viewing_interest_detected=True):
+        result = await process_inbound_message(
+            db,
+            message=_make_message(phone, "Can I view it?", listing_ref_url="https://agency.com/listings/apt-99"),
+        )
+
+    from app.services import lead_service as ls
+    lead = await ls.get_lead(db, lead_id=result.lead.id)
+    assert lead.state == LeadState.VIEWING_INTEREST
+
+
+@pytest.mark.asyncio
+async def test_listing_inquiry_returns_no_listing_message_when_ref_not_found(db):
+    phone = _unique_phone()
+    # No listing created — reference_code won't resolve.
+    with _patch_classify(IntentType.LISTING_INQUIRY, confidence=0.95), _patch_notify():
+        result = await process_inbound_message(
+            db,
+            message=_make_message(phone, "Tell me about it", listing_ref_url="https://agency.com/listings/nonexistent-ref"),
+        )
+
+    assert result.workflow_type == WorkflowType.LISTING_INQUIRY
+    messages = await conversation_service.get_session_messages(db, session_id=result.session.id)
+    outbound = [m for m in messages if m.direction == MessageDirection.OUTBOUND]
+    assert len(outbound) == 1
+    # Must send an honest acknowledgment, not an empty message
+    assert outbound[0].body

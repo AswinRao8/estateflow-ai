@@ -45,3 +45,14 @@ class WorkflowResult:
     outbound_message: str | None
     new_lead_state: LeadState | None = None
     workflow_type: WorkflowType | None = None
+
+
+@dataclass
+class ListingResponseResult:
+    """Output of the listing response AI call.
+
+    viewing_interest_detected is True when the lead's message explicitly
+    signals intent to view or visit the property.
+    """
+    response_text: str
+    viewing_interest_detected: bool = False
