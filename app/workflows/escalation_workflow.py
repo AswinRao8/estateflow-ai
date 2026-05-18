@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.context import ConversationContext, WorkflowResult
 from app.models.enums import HandoffReason, LeadState, WorkflowType
-from app.services import lead_service
+from app.services import handoff_service, lead_service
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -19,6 +19,25 @@ async def run(
     *,
     reason: HandoffReason,
 ) -> WorkflowResult:
+    # Build the briefing first so it captures the pre-handoff lead state.
+    try:
+        briefing = await handoff_service.prepare(
+            db,
+            lead_id=context.lead.id,
+            session_id=context.session.id,
+            reason=reason,
+        )
+        logger.info(
+            "Handoff briefing assembled | lead=%s | state=%s | reason=%s | qual=%s | highlights=%d",
+            context.lead.id,
+            briefing.lead_state,
+            reason,
+            bool(briefing.qualification_summary),
+            len(briefing.conversation_highlights),
+        )
+    except Exception:
+        logger.exception("Failed to build handoff briefing | lead=%s", context.lead.id)
+
     try:
         await lead_service.set_human_active(
             db,

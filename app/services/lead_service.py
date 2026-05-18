@@ -97,6 +97,25 @@ async def release_human(
     return lead
 
 
+async def claim_lead(
+    db: AsyncSession, *, lead_id: uuid.UUID, agent_id: str
+) -> Lead:
+    """Assign an agent to a lead, handling both AI-triggered and fresh takeovers.
+
+    If the lead is already HUMAN_ACTIVE (AI triggered the escalation),
+    only the assigned_agent_id is updated — no state transition is needed.
+    If the lead is not yet HUMAN_ACTIVE, the full set_human_active transition
+    is performed. Raises InvalidStateTransitionError if the lead is in a
+    terminal state that cannot transition to HUMAN_ACTIVE.
+    """
+    lead = await get_lead(db, lead_id=lead_id)
+    if LeadState(lead.state) == LeadState.HUMAN_ACTIVE:
+        lead.assigned_agent_id = agent_id
+        await db.commit()
+        return lead
+    return await set_human_active(db, lead_id=lead_id, agent_id=agent_id)
+
+
 async def update_qualification(
     db: AsyncSession,
     *,
