@@ -78,3 +78,21 @@ class ListingCreate(BaseModel):
 
 class ListingStatusUpdate(BaseModel):
     status: PropertyStatus
+
+
+class ListingUpdate(BaseModel):
+    """Partial update — all fields optional. Only supplied fields are written."""
+    title: str | None = None
+    property_type: PropertyType | None = None
+    transaction_type: TransactionType | None = None
+    status: PropertyStatus | None = None
+    price: float | None = None
+    price_per_month: float | None = None
+    location_area: str | None = None
+    location_description: str | None = None
+    bedrooms: int | None = None
+    bathrooms: int | None = None
+    land_area_sqm: float | None = None
+    floor_area_sqm: float | None = None
+    description: str | None = None
+    features: str | None = None

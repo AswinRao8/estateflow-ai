@@ -7,7 +7,7 @@ from app.config import get_settings
 from app.exceptions import ListingNotFoundError
 from app.models.context import BuyerProfile
 from app.models.enums import PropertyStatus
-from app.models.listing import Listing, ListingCreate, ListingStatusUpdate
+from app.models.listing import Listing, ListingCreate, ListingStatusUpdate, ListingUpdate
 
 
 async def get_listing(db: AsyncSession, *, listing_id: uuid.UUID) -> Listing:
@@ -107,6 +107,23 @@ async def create_listing(db: AsyncSession, *, data: ListingCreate) -> Listing:
     return listing
 
 
+async def list_all(
+    db: AsyncSession,
+    *,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[Listing]:
+    tenant_id = get_settings().default_tenant_id
+    result = await db.execute(
+        select(Listing)
+        .where(Listing.tenant_id == tenant_id)
+        .order_by(Listing.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return list(result.scalars().all())
+
+
 async def update_listing_status(
     db: AsyncSession,
     *,
@@ -115,5 +132,18 @@ async def update_listing_status(
 ) -> Listing:
     listing = await get_listing(db, listing_id=listing_id)
     listing.status = update.status
+    await db.commit()
+    return listing
+
+
+async def update_listing(
+    db: AsyncSession,
+    *,
+    listing_id: uuid.UUID,
+    data: ListingUpdate,
+) -> Listing:
+    listing = await get_listing(db, listing_id=listing_id)
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(listing, field, value)
     await db.commit()
     return listing

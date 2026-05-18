@@ -235,6 +235,19 @@ async def schedule_no_response(
     )
 
 
+async def list_for_lead(db: Any, *, lead_id: uuid.UUID) -> list[FollowUp]:
+    """Return all follow-ups for a lead ordered by scheduled_at ascending."""
+    from sqlalchemy import select
+
+    tenant_id = get_settings().default_tenant_id
+    result = await db.execute(
+        select(FollowUp)
+        .where(FollowUp.lead_id == lead_id, FollowUp.tenant_id == tenant_id)
+        .order_by(FollowUp.scheduled_at.asc())
+    )
+    return list(result.scalars().all())
+
+
 async def cancel_pending(db: Any, *, lead_id: uuid.UUID) -> None:
     """Cancel all PENDING follow-ups for a lead when they respond."""
     from sqlalchemy import select

@@ -13,6 +13,7 @@ from app.routers import whatsapp_router
 from app.routers import agent_router
 from app.routers import session_router
 from app.routers import admin_router
+from app.routers import dashboard_router
 
 logger = get_logger(__name__)
 
@@ -66,6 +67,9 @@ def _register_routers(app: FastAPI, api_prefix: str) -> None:
     # the provider URL is configured externally and changing it
     # requires updating the provider dashboard — not just code.
     app.include_router(whatsapp_router.router)
+
+    # Agent dashboard — served at /dashboard (no API prefix, no versioning).
+    app.include_router(dashboard_router.router)
 
 
 def _register_exception_handlers(app: FastAPI) -> None:

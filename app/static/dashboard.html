@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EstateFlow AI — Agent Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f6fa;color:#1a1a2e;min-height:100vh}
+/* Header */
+.hdr{background:#1a1a2e;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.hdr-title{font-size:17px;font-weight:700;letter-spacing:.3px}
+.hdr-agent{display:flex;align-items:center;gap:8px;font-size:13px;color:#aaa}
+.hdr-agent input{background:#2d2d44;border:1px solid #444;color:#fff;padding:5px 10px;border-radius:6px;font-size:13px;width:150px}
+/* Nav */
+.nav{background:#fff;border-bottom:1px solid #e5e7eb;display:flex;padding:0 24px}
+.tab{padding:14px 20px;font-size:14px;font-weight:500;cursor:pointer;border-bottom:3px solid transparent;color:#6b7280;transition:color .15s}
+.tab.active{border-bottom-color:#4f46e5;color:#4f46e5}
+.tab:hover:not(.active){color:#374151}
+/* Content */
+.main{padding:24px;max-width:1280px;margin:0 auto}
+/* Alert */
+.alert{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none}
+.alert.show{display:block}
+.alert-err{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.alert-ok{background:#dcfce7;color:#166534;border:1px solid #86efac}
+/* Card */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}
+.card-hdr{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f3f4f6}
+.card-title{font-size:15px;font-weight:600}
+/* Table */
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;background:#fafafa;border-bottom:1px solid #f3f4f6}
+td{padding:12px 16px;font-size:14px;border-bottom:1px solid #f9fafb;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#f9f9ff;cursor:pointer}
+.no-hover:hover td{background:transparent;cursor:default}
+/* Badges */
+.badge{padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.b-new_inquiry{background:#f3f4f6;color:#6b7280}
+.b-context_identified{background:#dbeafe;color:#1d4ed8}
+.b-qualifying{background:#fef9c3;color:#854d0e}
+.b-matching_properties{background:#ede9fe;color:#6d28d9}
+.b-viewing_interest{background:#fae8ff;color:#86198f}
+.b-viewing_scheduled{background:#ffedd5;color:#9a3412}
+.b-post_viewing{background:#cffafe;color:#155e75}
+.b-negotiation{background:#fef3c7;color:#92400e}
+.b-human_active{background:#fee2e2;color:#991b1b}
+.b-follow_up{background:#ccfbf1;color:#065f46}
+.b-closed_won{background:#dcfce7;color:#166534}
+.b-closed_lost{background:#f1f5f9;color:#475569}
+.b-available{background:#dcfce7;color:#166534}
+.b-under_offer{background:#fef3c7;color:#92400e}
+.b-sold{background:#f1f5f9;color:#475569}
+.b-rented{background:#dbeafe;color:#1d4ed8}
+.b-inactive{background:#f1f5f9;color:#9ca3af}
+.b-pending{background:#fef9c3;color:#854d0e}
+.b-sent{background:#dcfce7;color:#166534}
+.b-suppressed{background:#f1f5f9;color:#9ca3af}
+.b-cancelled{background:#fee2e2;color:#991b1b}
+/* Buttons */
+.btn{padding:6px 14px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:opacity .15s;white-space:nowrap}
+.btn:active{opacity:.8}
+.btn-primary{background:#4f46e5;color:#fff}
+.btn-primary:hover{background:#4338ca}
+.btn-red{background:#ef4444;color:#fff}
+.btn-red:hover{background:#dc2626}
+.btn-gray{background:#f3f4f6;color:#374151;border:1px solid #e5e7eb}
+.btn-gray:hover{background:#e5e7eb}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:760px;max-width:100%;box-shadow:0 24px 64px rgba(0,0,0,.25);display:flex;flex-direction:column;max-height:calc(100vh - 80px)}
+.modal-hdr{padding:20px 24px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f3f4f6;flex-shrink:0}
+.modal-hdr h2{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;cursor:pointer;font-size:24px;color:#9ca3af;line-height:1;padding:2px}
+.modal-close:hover{color:#374151}
+.modal-body{padding:20px 24px 24px;overflow-y:auto;flex:1}
+/* Lead detail layout */
+.detail-top{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px}
+.detail-meta{flex:1;min-width:200px}
+.detail-meta .phone{font-size:18px;font-weight:700;margin-bottom:6px}
+.detail-meta .meta-row{font-size:13px;color:#6b7280;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.detail-actions{display:flex;gap:8px;flex-shrink:0}
+/* Two-col layout */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:640px){.two-col{grid-template-columns:1fr}}
+/* Section label */
+.sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;margin-bottom:10px}
+/* Qual grid */
+.qual-grid{display:flex;flex-direction:column;gap:8px}
+.qual-item{background:#f9fafb;padding:10px 12px;border-radius:8px}
+.qual-key{font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px}
+.qual-val{font-size:14px;font-weight:500;margin-top:2px}
+/* Chat */
+.chat{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding:4px 2px}
+.msg{display:flex;flex-direction:column;max-width:80%}
+.msg-in{align-self:flex-start}
+.msg-out{align-self:flex-end}
+.bubble{padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.5;word-break:break-word}
+.msg-in .bubble{background:#f3f4f6;color:#1f2937;border-bottom-left-radius:3px}
+.msg-out .bubble{background:#4f46e5;color:#fff;border-bottom-right-radius:3px}
+.msg-time{font-size:11px;color:#d1d5db;margin-top:2px}
+.msg-out .msg-time{text-align:right}
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-full{grid-column:1/-1}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:12px;font-weight:600;color:#6b7280}
+.form-label .req{color:#ef4444}
+.form-ctrl{padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;width:100%}
+.form-ctrl:focus{outline:none;border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+/* Misc */
+.empty{padding:48px;text-align:center;color:#9ca3af;font-size:14px}
+.loading{padding:32px;text-align:center;color:#9ca3af;font-size:14px}
+.text-sm{font-size:13px}
+.text-muted{color:#9ca3af}
+.mt-16{margin-top:16px}
+.hidden{display:none}
+.view{display:none}
+.view.active{display:block}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-title">EstateFlow AI — Agent Dashboard</div>
+  <div class="hdr-agent">
+    <label for="agentId">Agent ID</label>
+    <input id="agentId" type="text" placeholder="agent-1">
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="tab active" onclick="showView('leads')">Leads</div>
+  <div class="tab" onclick="showView('listings')">Listings</div>
+</nav>
+
+<main class="main">
+  <div id="globalAlert" class="alert"></div>
+
+  <!-- LEADS VIEW -->
+  <div id="view-leads" class="view active">
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">Active Leads</span>
+        <button class="btn btn-gray btn-sm" onclick="loadLeads()">Refresh</button>
+      </div>
+      <div id="leadsBody"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- LISTINGS VIEW -->
+  <div id="view-listings" class="view">
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">Property Listings</span>
+        <button class="btn btn-primary btn-sm" onclick="openListingForm(null)">+ Add Listing</button>
+      </div>
+      <div id="listingsBody"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+</main>
+
+<!-- LEAD DETAIL MODAL -->
+<div id="leadModal" class="overlay" onclick="closeIfOverlay(event,'leadModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="leadModalTitle">Lead Detail</h2>
+      <button class="modal-close" onclick="closeModal('leadModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="leadModalBody"><div class="loading">Loading…</div></div>
+  </div>
+</div>
+
+<!-- RELEASE DIALOG -->
+<div id="releaseModal" class="overlay" onclick="closeIfOverlay(event,'releaseModal')">
+  <div class="modal" style="width:420px">
+    <div class="modal-hdr">
+      <h2>Release Lead to AI</h2>
+      <button class="modal-close" onclick="closeModal('releaseModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm" style="margin-bottom:14px;color:#6b7280">Select the state to return the lead to after releasing from human control.</p>
+      <div class="form-group">
+        <label class="form-label" for="releaseState">Return to State</label>
+        <select id="releaseState" class="form-ctrl">
+          <option value="QUALIFYING">QUALIFYING</option>
+          <option value="MATCHING_PROPERTIES">MATCHING_PROPERTIES</option>
+          <option value="VIEWING_INTEREST">VIEWING_INTEREST</option>
+          <option value="VIEWING_SCHEDULED">VIEWING_SCHEDULED</option>
+          <option value="POST_VIEWING">POST_VIEWING</option>
+          <option value="NEGOTIATION">NEGOTIATION</option>
+          <option value="FOLLOW_UP">FOLLOW_UP</option>
+          <option value="CLOSED_WON">CLOSED_WON</option>
+          <option value="CLOSED_LOST">CLOSED_LOST</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button class="btn btn-gray" onclick="closeModal('releaseModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmRelease()">Release</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LISTING FORM MODAL -->
+<div id="listingModal" class="overlay" onclick="closeIfOverlay(event,'listingModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="listingModalTitle">Add Listing</h2>
+      <button class="modal-close" onclick="closeModal('listingModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="listingForm" onsubmit="saveListingForm(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="f-ref">Reference Code <span class="req">*</span></label>
+            <input id="f-ref" class="form-ctrl" placeholder="e.g. APT-001" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-title">Title <span class="req">*</span></label>
+            <input id="f-title" class="form-ctrl" placeholder="e.g. 3BR Riverside Apartment" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-type">Property Type <span class="req">*</span></label>
+            <select id="f-type" class="form-ctrl" required>
+              <option value="">Select…</option>
+              <option value="HOUSE">House</option>
+              <option value="APARTMENT">Apartment</option>
+              <option value="VILLA">Villa</option>
+              <option value="PENTHOUSE">Penthouse</option>
+              <option value="LAND">Land</option>
+              <option value="COMMERCIAL">Commercial</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-txn">Transaction <span class="req">*</span></label>
+            <select id="f-txn" class="form-ctrl" required>
+              <option value="">Select…</option>
+              <option value="SALE">Sale</option>
+              <option value="RENTAL">Rental</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-status">Status</label>
+            <select id="f-status" class="form-ctrl">
+              <option value="AVAILABLE">Available</option>
+              <option value="UNDER_OFFER">Under Offer</option>
+              <option value="SOLD">Sold</option>
+              <option value="RENTED">Rented</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-price">Price</label>
+            <input id="f-price" class="form-ctrl" type="number" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-ppm">Price per Month</label>
+            <input id="f-ppm" class="form-ctrl" type="number" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-loc">Location Area</label>
+            <input id="f-loc" class="form-ctrl" placeholder="e.g. Downtown, Riverside">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-bed">Bedrooms</label>
+            <input id="f-bed" class="form-ctrl" type="number" min="0" placeholder="">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="f-bath">Bathrooms</label>
+            <input id="f-bath" class="form-ctrl" type="number" min="0" placeholder="">
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label" for="f-desc">Description</label>
+            <textarea id="f-desc" class="form-ctrl" rows="3" placeholder="Property description…" style="resize:vertical"></textarea>
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label" for="f-feat">Features</label>
+            <textarea id="f-feat" class="form-ctrl" rows="2" placeholder="Key features…" style="resize:vertical"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+          <button type="button" class="btn btn-gray" onclick="closeModal('listingModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="listingSubmitBtn">Save Listing</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/v1';
+let _agentId = localStorage.getItem('ef_agent') || 'agent-1';
+let _releaseLeadId = null;
+let _editListingId = null;
+let _currentLeadId = null;
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('agentId');
+  inp.value = _agentId;
+  inp.addEventListener('change', e => {
+    _agentId = e.target.value.trim() || 'agent-1';
+    localStorage.setItem('ef_agent', _agentId);
+  });
+  showView('leads');
+});
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.toLowerCase() === name) t.classList.add('active');
+  });
+  if (name === 'leads') loadLeads();
+  if (name === 'listings') loadListings();
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+function badge(value) {
+  if (!value) return '<span class="text-muted">—</span>';
+  const key = value.toLowerCase().replace(/ /g, '_');
+  return `<span class="badge b-${key}">${value.replace(/_/g, ' ')}</span>`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+function fmtRelative(iso) {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('globalAlert');
+  el.textContent = msg;
+  el.className = `alert show alert-${type}`;
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+async function apiFetch(url, opts = {}) {
+  const r = await fetch(API + url, {
+    headers: {'Content-Type': 'application/json', ...opts.headers},
+    ...opts,
+  });
+  const json = await r.json();
+  if (!r.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || `HTTP ${r.status}`);
+  }
+  return json.data;
+}
+
+// ── Modals ─────────────────────────────────────────────────────────────────
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeIfOverlay(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+
+// ── Leads view ─────────────────────────────────────────────────────────────
+
+async function loadLeads() {
+  const body = document.getElementById('leadsBody');
+  body.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const leads = await apiFetch('/leads');
+    if (!leads || leads.length === 0) {
+      body.innerHTML = '<div class="empty">No leads yet.</div>';
+      return;
+    }
+    const rows = leads.map(l => `
+      <tr onclick="openLeadDetail('${l.id}')">
+        <td><span style="font-weight:600">${l.phone_number}</span></td>
+        <td>${badge(l.state)}</td>
+        <td>${l.buyer_type ? badge(l.buyer_type) : '<span class="text-muted">—</span>'}</td>
+        <td class="text-muted">${l.source_listing_ref_code || '—'}</td>
+        <td class="text-muted" style="font-size:13px">${fmtRelative(l.updated_at)}</td>
+        <td>${l.is_human_active ? '<span style="color:#991b1b;font-size:12px;font-weight:600">● HUMAN</span>' : '<span style="color:#16a34a;font-size:12px">● AI</span>'}</td>
+        <td onclick="event.stopPropagation()">
+          ${l.is_human_active
+            ? `<button class="btn btn-gray btn-xs" onclick="openReleaseDialog('${l.id}')">Release →</button>`
+            : `<button class="btn btn-primary btn-xs" onclick="takeoverLead('${l.id}')">Take Over</button>`
+          }
+        </td>
+      </tr>`).join('');
+    body.innerHTML = `<table>
+      <thead><tr>
+        <th>Phone</th><th>State</th><th>Buyer Type</th>
+        <th>Source Listing</th><th>Last Activity</th><th>Control</th><th>Action</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    body.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+// ── Lead detail ────────────────────────────────────────────────────────────
+
+async function openLeadDetail(id) {
+  _currentLeadId = id;
+  document.getElementById('leadModalTitle').textContent = 'Loading…';
+  document.getElementById('leadModalBody').innerHTML = '<div class="loading">Loading…</div>';
+  openModal('leadModal');
+  try {
+    const d = await apiFetch('/leads/' + id);
+    renderLeadDetail(d);
+  } catch(e) {
+    document.getElementById('leadModalBody').innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function renderLeadDetail(d) {
+  document.getElementById('leadModalTitle').textContent = d.phone_number;
+
+  // Actions
+  const actionBtn = d.is_human_active
+    ? `<button class="btn btn-gray btn-sm" onclick="openReleaseDialog('${d.id}')">Release →</button>`
+    : `<button class="btn btn-primary btn-sm" onclick="takeoverLead('${d.id}')">Take Over</button>`;
+
+  // Qualification data
+  let qualHtml = '<div class="empty" style="padding:16px">No qualification data.</div>';
+  if (d.qualification_data && Object.keys(d.qualification_data).length > 0) {
+    const items = Object.entries(d.qualification_data).map(([k, v]) =>
+      `<div class="qual-item">
+        <div class="qual-key">${k.replace(/_/g,' ')}</div>
+        <div class="qual-val">${v ?? '—'}</div>
+      </div>`
+    ).join('');
+    qualHtml = `<div class="qual-grid">${items}</div>`;
+  }
+
+  // Messages
+  let chatHtml = '<div class="empty" style="padding:16px">No messages.</div>';
+  if (d.messages && d.messages.length > 0) {
+    const bubbles = d.messages.map(m => {
+      const dir = m.direction === 'inbound' ? 'in' : 'out';
+      return `<div class="msg msg-${dir}">
+        <div class="bubble">${escHtml(m.body)}</div>
+        <div class="msg-time">${fmtDate(m.created_at)}</div>
+      </div>`;
+    }).join('');
+    chatHtml = `<div class="chat" id="chatBox">${bubbles}</div>`;
+  }
+
+  // Follow-ups
+  let fuHtml = '<div class="empty" style="padding:12px">No follow-ups scheduled.</div>';
+  if (d.follow_ups && d.follow_ups.length > 0) {
+    const fuRows = d.follow_ups.map(f => `
+      <tr class="no-hover">
+        <td>${badge(f.trigger_type)}</td>
+        <td>${badge(f.status)}</td>
+        <td class="text-muted" style="font-size:13px">${fmtDate(f.scheduled_at)}</td>
+        <td class="text-muted" style="font-size:13px">${f.sent_at ? fmtDate(f.sent_at) : '—'}</td>
+      </tr>`).join('');
+    fuHtml = `<table>
+      <thead><tr><th>Trigger</th><th>Status</th><th>Scheduled</th><th>Sent</th></tr></thead>
+      <tbody>${fuRows}</tbody>
+    </table>`;
+  }
+
+  document.getElementById('leadModalBody').innerHTML = `
+    <div class="detail-top">
+      <div class="detail-meta">
+        <div class="phone">${d.phone_number}</div>
+        <div class="meta-row">
+          ${badge(d.state)}
+          ${d.buyer_type ? badge(d.buyer_type) : ''}
+          ${d.source_listing_ref_code ? `<span class="text-muted">Src: ${d.source_listing_ref_code}</span>` : ''}
+          ${d.assigned_agent_id ? `<span class="text-muted">Agent: ${d.assigned_agent_id}</span>` : ''}
+        </div>
+      </div>
+      <div class="detail-actions" id="leadActions">${actionBtn}</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="sec-label">Buyer Profile</div>
+        ${qualHtml}
+      </div>
+      <div>
+        <div class="sec-label">Conversation (${d.messages.length} messages)</div>
+        ${chatHtml}
+      </div>
+    </div>
+    <div class="mt-16">
+      <div class="sec-label">Scheduled Follow-Ups</div>
+      ${fuHtml}
+    </div>`;
+
+  // Scroll chat to bottom
+  setTimeout(() => {
+    const cb = document.getElementById('chatBox');
+    if (cb) cb.scrollTop = cb.scrollHeight;
+  }, 0);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Takeover ───────────────────────────────────────────────────────────────
+
+async function takeoverLead(leadId) {
+  try {
+    await apiFetch(`/agents/${encodeURIComponent(_agentId)}/takeover`, {
+      method: 'POST',
+      body: JSON.stringify({lead_id: leadId}),
+    });
+    showAlert('Lead taken over successfully.', 'ok');
+    loadLeads();
+    if (leadId === _currentLeadId) openLeadDetail(leadId);
+  } catch(e) {
+    showAlert('Takeover failed: ' + e.message, 'err');
+  }
+}
+
+// ── Release ────────────────────────────────────────────────────────────────
+
+function openReleaseDialog(leadId) {
+  _releaseLeadId = leadId;
+  openModal('releaseModal');
+}
+
+async function confirmRelease() {
+  const toState = document.getElementById('releaseState').value;
+  try {
+    await apiFetch(`/agents/${encodeURIComponent(_agentId)}/release`, {
+      method: 'POST',
+      body: JSON.stringify({lead_id: _releaseLeadId, to_state: toState}),
+    });
+    closeModal('releaseModal');
+    showAlert('Lead released to AI.', 'ok');
+    loadLeads();
+    if (_releaseLeadId === _currentLeadId) openLeadDetail(_releaseLeadId);
+  } catch(e) {
+    showAlert('Release failed: ' + e.message, 'err');
+  }
+}
+
+// ── Listings view ──────────────────────────────────────────────────────────
+
+async function loadListings() {
+  const body = document.getElementById('listingsBody');
+  body.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const listings = await apiFetch('/listings');
+    if (!listings || listings.length === 0) {
+      body.innerHTML = '<div class="empty">No listings yet. Click "+ Add Listing" to create one.</div>';
+      return;
+    }
+    const rows = listings.map(l => {
+      const price = l.price ? `$${Number(l.price).toLocaleString()}` : (l.price_per_month ? `$${Number(l.price_per_month).toLocaleString()}/mo` : '—');
+      return `<tr class="no-hover">
+        <td><span style="font-weight:600;font-size:13px">${l.reference_code}</span></td>
+        <td>${escHtml(l.title)}</td>
+        <td>${badge(l.property_type)}</td>
+        <td class="text-muted" style="font-size:13px">${l.transaction_type}</td>
+        <td>${badge(l.status)}</td>
+        <td class="text-muted" style="font-size:13px">${price}</td>
+        <td class="text-muted" style="font-size:13px">${l.location_area || '—'}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-gray btn-xs" onclick="openListingForm(${JSON.stringify(l).replace(/"/g,'&quot;')})">Edit</button>
+            ${l.status !== 'INACTIVE'
+              ? `<button class="btn btn-xs" style="background:#fff3cd;color:#92400e;border:1px solid #fcd34d" onclick="deactivateListing('${l.id}')">Deactivate</button>`
+              : `<button class="btn btn-xs btn-gray" onclick="activateListing('${l.id}')">Re-activate</button>`
+            }
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    body.innerHTML = `<table>
+      <thead><tr><th>Ref</th><th>Title</th><th>Type</th><th>Txn</th><th>Status</th><th>Price</th><th>Location</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    body.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+// ── Listing form ───────────────────────────────────────────────────────────
+
+function openListingForm(listing) {
+  _editListingId = listing ? listing.id : null;
+  document.getElementById('listingModalTitle').textContent = listing ? 'Edit Listing' : 'Add Listing';
+  document.getElementById('listingSubmitBtn').textContent = listing ? 'Save Changes' : 'Save Listing';
+
+  // Reset then fill
+  document.getElementById('listingForm').reset();
+  if (listing) {
+    document.getElementById('f-ref').value = listing.reference_code || '';
+    document.getElementById('f-ref').readOnly = true; // ref code is immutable on edit
+    document.getElementById('f-title').value = listing.title || '';
+    document.getElementById('f-type').value = listing.property_type || '';
+    document.getElementById('f-txn').value = listing.transaction_type || '';
+    document.getElementById('f-status').value = listing.status || 'AVAILABLE';
+    document.getElementById('f-price').value = listing.price || '';
+    document.getElementById('f-ppm').value = listing.price_per_month || '';
+    document.getElementById('f-loc').value = listing.location_area || '';
+    document.getElementById('f-bed').value = listing.bedrooms ?? '';
+    document.getElementById('f-bath').value = listing.bathrooms ?? '';
+    document.getElementById('f-desc').value = listing.description || '';
+    document.getElementById('f-feat').value = listing.features || '';
+  } else {
+    document.getElementById('f-ref').readOnly = false;
+  }
+  openModal('listingModal');
+}
+
+async function saveListingForm(e) {
+  e.preventDefault();
+  const payload = {
+    title: document.getElementById('f-title').value.trim(),
+    property_type: document.getElementById('f-type').value,
+    transaction_type: document.getElementById('f-txn').value,
+    status: document.getElementById('f-status').value,
+    price: document.getElementById('f-price').value ? parseFloat(document.getElementById('f-price').value) : null,
+    price_per_month: document.getElementById('f-ppm').value ? parseFloat(document.getElementById('f-ppm').value) : null,
+    location_area: document.getElementById('f-loc').value.trim() || null,
+    bedrooms: document.getElementById('f-bed').value ? parseInt(document.getElementById('f-bed').value) : null,
+    bathrooms: document.getElementById('f-bath').value ? parseInt(document.getElementById('f-bath').value) : null,
+    description: document.getElementById('f-desc').value.trim() || null,
+    features: document.getElementById('f-feat').value.trim() || null,
+  };
+
+  try {
+    if (_editListingId) {
+      await apiFetch('/listings/' + _editListingId, {method:'PUT', body:JSON.stringify(payload)});
+      showAlert('Listing updated.', 'ok');
+    } else {
+      payload.reference_code = document.getElementById('f-ref').value.trim();
+      await apiFetch('/listings', {method:'POST', body:JSON.stringify(payload)});
+      showAlert('Listing created.', 'ok');
+    }
+    closeModal('listingModal');
+    loadListings();
+  } catch(e) {
+    showAlert('Save failed: ' + e.message, 'err');
+  }
+}
+
+async function deactivateListing(id) {
+  if (!confirm('Deactivate this listing?')) return;
+  try {
+    await apiFetch('/listings/' + id + '/status', {method:'PATCH', body:JSON.stringify({status:'INACTIVE'})});
+    showAlert('Listing deactivated.', 'ok');
+    loadListings();
+  } catch(e) {
+    showAlert('Failed: ' + e.message, 'err');
+  }
+}
+
+async function activateListing(id) {
+  try {
+    await apiFetch('/listings/' + id + '/status', {method:'PATCH', body:JSON.stringify({status:'AVAILABLE'})});
+    showAlert('Listing re-activated.', 'ok');
+    loadListings();
+  } catch(e) {
+    showAlert('Failed: ' + e.message, 'err');
+  }
+}
+</script>
+</body>
+</html>
