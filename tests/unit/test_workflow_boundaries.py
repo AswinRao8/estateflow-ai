@@ -111,3 +111,21 @@ def test_qualification_workflow_has_no_direct_sqlalchemy_calls():
     assert "db.execute" not in source
     assert "db.add(" not in source
     assert "select(" not in source
+
+
+# ---------------------------------------------------------------------------
+# property_matching_workflow — no direct Anthropic, no direct SQLAlchemy
+# ---------------------------------------------------------------------------
+
+def test_property_matching_workflow_has_no_anthropic_import():
+    from app.workflows import property_matching_workflow
+    source = inspect.getsource(property_matching_workflow)
+    assert "anthropic" not in source, "Workflow must call matching_service, not the SDK directly"
+
+
+def test_property_matching_workflow_has_no_direct_sqlalchemy_calls():
+    from app.workflows import property_matching_workflow
+    source = inspect.getsource(property_matching_workflow)
+    assert "db.execute" not in source
+    assert "db.add(" not in source
+    assert "select(" not in source

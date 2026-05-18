@@ -1,10 +1,11 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.exceptions import ListingNotFoundError
+from app.models.context import BuyerProfile
 from app.models.enums import PropertyStatus
 from app.models.listing import Listing, ListingCreate, ListingStatusUpdate
 
@@ -46,6 +47,55 @@ async def list_available(
         .order_by(Listing.created_at.desc())
         .limit(limit)
         .offset(offset)
+    )
+    return list(result.scalars().all())
+
+
+async def match_listings(
+    db: AsyncSession,
+    *,
+    profile: BuyerProfile,
+    limit: int = 5,
+) -> list[Listing]:
+    """Return available listings that satisfy the buyer's stated criteria.
+
+    SQL is the sole arbiter of eligibility. All populated profile fields are
+    applied as AND-ed WHERE clauses. Location matching uses ILIKE for fuzzy
+    geographic lookup — this is a temporary MVP approximation, not canonical
+    location intelligence. Results are ranked by price proximity to the buyer's
+    budget midpoint when both bounds are known; by recency otherwise.
+    The result set is always bounded.
+    """
+    tenant_id = get_settings().default_tenant_id
+
+    filters = [
+        Listing.tenant_id == tenant_id,
+        Listing.status == PropertyStatus.AVAILABLE,
+    ]
+
+    if profile.property_type:
+        filters.append(func.lower(Listing.property_type) == profile.property_type.lower())
+
+    if profile.budget_min is not None:
+        filters.append(Listing.price >= profile.budget_min)
+
+    if profile.budget_max is not None:
+        filters.append(Listing.price <= profile.budget_max)
+
+    if profile.location:
+        filters.append(Listing.location_area.ilike(f"%{profile.location}%"))
+
+    if profile.bedrooms is not None:
+        filters.append(Listing.bedrooms >= profile.bedrooms)
+
+    if profile.budget_min is not None and profile.budget_max is not None:
+        midpoint = (profile.budget_min + profile.budget_max) / 2.0
+        order_by = func.abs(Listing.price - midpoint)
+    else:
+        order_by = Listing.created_at.desc()
+
+    result = await db.execute(
+        select(Listing).where(*filters).order_by(order_by).limit(limit)
     )
     return list(result.scalars().all())
 

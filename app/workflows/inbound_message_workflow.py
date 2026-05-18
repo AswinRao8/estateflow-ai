@@ -27,6 +27,7 @@ from app.workflows import (
     general_inquiry_workflow,
     listing_inquiry_workflow,
     out_of_scope_workflow,
+    property_matching_workflow,
     qualification_workflow,
     viewing_request_workflow,
 )
@@ -236,6 +237,16 @@ async def _dispatch(
     workflow_type: WorkflowType,
     classification: ClassificationResult,
 ) -> WorkflowResult:
+    # State-based override: leads already in MATCHING_PROPERTIES stay in the
+    # matching workflow for qualification and general inquiry intents so that
+    # re-stating or refining criteria re-runs the SQL match rather than
+    # restarting the qualification flow.
+    if (
+        LeadState(context.lead.state) == LeadState.MATCHING_PROPERTIES
+        and workflow_type in {WorkflowType.QUALIFICATION, WorkflowType.GENERAL_INQUIRY}
+    ):
+        return await property_matching_workflow.run(db, context)
+
     if workflow_type == WorkflowType.CLARIFICATION:
         return await clarification_workflow.run(context)
     if workflow_type == WorkflowType.ESCALATION:

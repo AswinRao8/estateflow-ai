@@ -7,6 +7,7 @@ from app.models.enums import LeadState, WorkflowType
 from app.models.lead import LeadQualificationUpdate
 from app.services import lead_service, qualification_service
 from app.utils.logging import get_logger
+from app.workflows import property_matching_workflow
 
 logger = get_logger(__name__)
 
@@ -27,6 +28,23 @@ async def run(db: AsyncSession, context: ConversationContext) -> WorkflowResult:
                 qualification_data=result.extracted_data if result.extracted_data else None,
             ),
         )
+
+    # When the profile is complete, transition immediately to property matching.
+    # Advance state before delegating so property_matching_workflow sees the
+    # correct in-memory state and does not attempt a redundant advancement.
+    if result.qualification_complete:
+        try:
+            await lead_service.advance_state(
+                db, lead_id=context.lead.id, to_state=LeadState.MATCHING_PROPERTIES
+            )
+            context.lead.state = LeadState.MATCHING_PROPERTIES
+        except InvalidStateTransitionError:
+            logger.warning(
+                "Could not advance to MATCHING_PROPERTIES on qualification complete | lead=%s | state=%s",
+                context.lead.id,
+                context.lead.state,
+            )
+        return await property_matching_workflow.run(db, context)
 
     new_state = None
     if LeadState(context.lead.state) in _QUALIFYING_ENTRY_STATES:

@@ -7,6 +7,44 @@ from app.models.session import Session
 
 
 @dataclass
+class BuyerProfile:
+    """Typed view into lead.qualification_data used by listing_service.match_listings.
+
+    Extracts only the fields that map to SQL filter criteria. timeline, urgency,
+    and other conversational fields remain in qualification_data and are used only
+    in AI prompt construction — never as SQL predicates.
+    """
+    budget_min: float | None = None
+    budget_max: float | None = None
+    location: str | None = None
+    property_type: str | None = None
+    bedrooms: int | None = None
+
+    @classmethod
+    def from_qualification_data(cls, data: dict | None) -> "BuyerProfile":
+        if not data:
+            return cls()
+        bedrooms_raw = data.get("bedrooms")
+        return cls(
+            budget_min=data.get("budget_min"),
+            budget_max=data.get("budget_max"),
+            location=data.get("location"),
+            property_type=data.get("property_type"),
+            bedrooms=int(bedrooms_raw) if bedrooms_raw is not None else None,
+        )
+
+    @property
+    def has_criteria(self) -> bool:
+        return (
+            self.budget_min is not None
+            or self.budget_max is not None
+            or self.location is not None
+            or self.property_type is not None
+            or self.bedrooms is not None
+        )
+
+
+@dataclass
 class ConversationContext:
     """Assembled snapshot passed into classify_intent and all workflow functions.
 
@@ -70,3 +108,16 @@ class QualificationResult:
     extracted_data: dict
     buyer_type: BuyerType | None = None
     qualification_complete: bool = False
+
+
+@dataclass
+class PropertyMatchResult:
+    """Output of the property matching AI explanation call.
+
+    The AI receives only SQL-matched listings and explains why each fits
+    the buyer's stated criteria. It never determines match eligibility —
+    that is done entirely by listing_service.match_listings before this
+    result is produced.
+    """
+    recommendation_text: str
+    viewing_interest_detected: bool = False
