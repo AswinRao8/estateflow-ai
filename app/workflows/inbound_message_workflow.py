@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,7 @@ from app.models.listing import Listing
 from app.models.session import Session
 from app.services import (
     conversation_service,
+    followup_service,
     lead_service,
     listing_service,
     notification_service,
@@ -97,6 +99,13 @@ async def process_inbound_message(
             provider_message_id=message.message_id,
         ),
     )
+
+    # Cancel pending follow-ups — the lead has responded, so they are no longer stale.
+    await followup_service.cancel_pending(db, lead_id=lead.id)
+
+    # Dispatch any overdue follow-ups for all leads (lightweight DB poll).
+    now = datetime.now(timezone.utc)
+    await followup_service.dispatch_due(db, now=now)
 
     # --- Section 2: Human-active gate ---
 
@@ -197,6 +206,12 @@ async def process_inbound_message(
     # --- Section 7: Workflow dispatch ---
 
     workflow_result = await _dispatch(db, context, workflow_type, classification)
+
+    # Schedule follow-ups based on workflow outcome.
+    if workflow_result.new_lead_state == LeadState.POST_VIEWING:
+        await followup_service.schedule_post_viewing(db, lead_id=lead.id, now=now)
+    if workflow_result.workflow_type == WorkflowType.MATCHING_PROPERTIES:
+        await followup_service.schedule_no_response(db, lead_id=lead.id, now=now)
 
     # --- Section 8: Response send + persist ---
 

@@ -77,8 +77,23 @@ class HandoffReason(StrEnum):
 class WorkflowType(StrEnum):
     LISTING_INQUIRY = "listing_inquiry"
     QUALIFICATION = "qualification"
+    MATCHING_PROPERTIES = "matching_properties"
     VIEWING_REQUEST = "viewing_request"
     GENERAL_INQUIRY = "general_inquiry"
     CLARIFICATION = "clarification"
     OUT_OF_SCOPE = "out_of_scope"
     ESCALATION = "escalation"
+
+
+class FollowUpTriggerType(StrEnum):
+    POST_VIEWING_24H = "POST_VIEWING_24H"
+    POST_VIEWING_48H = "POST_VIEWING_48H"
+    STALLED_3D = "STALLED_3D"
+    NO_RESPONSE_48H = "NO_RESPONSE_48H"
+
+
+class FollowUpStatus(StrEnum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+    SUPPRESSED = "SUPPRESSED"   # due but lead was human-active; skipped
+    CANCELLED = "CANCELLED"     # obsoleted before firing (lead responded or closed)
