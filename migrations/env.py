@@ -18,6 +18,7 @@ import app.models.lead  # noqa: F401
 import app.models.listing  # noqa: F401
 import app.models.session  # noqa: F401
 import app.models.conversation  # noqa: F401
+import app.models.follow_up  # noqa: F401
 
 config = context.config
 settings = get_settings()

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Boolean, ForeignKey, String, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, TimestampMixin
@@ -24,7 +24,7 @@ class Session(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Wall-clock timestamp of the most recent inbound or outbound message.
     last_activity_at: Mapped[datetime | None] = mapped_column(
-        nullable=True
+        DateTime(timezone=True), nullable=True
     )
 
 
