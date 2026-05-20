@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse, Response
 
 from app.dependencies import DbSessionDep, SettingsDep
 from app.integrations.whatsapp.parser import parse_delivery_status, parse_inbound_payload
 from app.integrations.whatsapp.security import validate_webhook_signature
+from app.integrations.whatsapp.webhook_schema import WEBHOOK_EXAMPLES, WhatsAppWebhookPayload
 from app.utils.logging import get_logger
 from app.workflows.inbound_message_workflow import process_inbound_message
 
@@ -28,6 +31,7 @@ async def verify_webhook(
 @router.post("/inbound", summary="Receive inbound WhatsApp message")
 async def receive_inbound_message(
     request: Request,
+    body: Annotated[WhatsAppWebhookPayload, Body(openapi_examples=WEBHOOK_EXAMPLES)],
     settings: SettingsDep,
     db: DbSessionDep,
 ) -> Response:
@@ -36,17 +40,16 @@ async def receive_inbound_message(
     Errors in per-message processing are logged and swallowed — returning 200
     prevents WhatsApp from retrying a message that would fail for the same
     reason on every retry (e.g., a parse or routing bug).
+
+    Starlette caches request.body() so the HMAC check reads the same bytes
+    that FastAPI already consumed to parse `body`.
     """
     raw_body = await request.body()
     _verify_signature(raw_body, request, settings)
 
-    try:
-        payload = await request.json()
-    except Exception:
-        logger.warning("Malformed JSON in inbound webhook payload")
-        return Response(status_code=200)
-
-    messages = parse_inbound_payload(payload)
+    # by_alias=True is required so WhatsAppMessage.from_number serialises
+    # back to the key "from" that parse_inbound_payload expects.
+    messages = parse_inbound_payload(body.model_dump(by_alias=True))
     for msg in messages:
         try:
             result = await process_inbound_message(
