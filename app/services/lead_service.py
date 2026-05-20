@@ -94,6 +94,7 @@ async def release_human(
     lead.is_human_active = False
     lead.assigned_agent_id = None
     await db.commit()
+    await db.refresh(lead)
     return lead
 
 

@@ -133,6 +133,7 @@ async def update_listing_status(
     listing = await get_listing(db, listing_id=listing_id)
     listing.status = update.status
     await db.commit()
+    await db.refresh(listing)
     return listing
 
 
@@ -146,4 +147,5 @@ async def update_listing(
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(listing, field, value)
     await db.commit()
+    await db.refresh(listing)
     return listing
