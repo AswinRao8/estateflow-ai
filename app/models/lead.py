@@ -19,6 +19,7 @@ VALID_LEAD_TRANSITIONS: dict[LeadState, frozenset[LeadState]] = {
     LeadState.NEW_INQUIRY: frozenset({
         LeadState.CONTEXT_IDENTIFIED,
         LeadState.QUALIFYING,
+        LeadState.VIEWING_INTEREST,
         LeadState.HUMAN_ACTIVE,
     }),
     LeadState.CONTEXT_IDENTIFIED: frozenset({

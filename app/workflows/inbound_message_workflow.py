@@ -207,6 +207,17 @@ async def process_inbound_message(
 
     workflow_result = await _dispatch(db, context, workflow_type, classification)
 
+    # Apply state transition signalled by the workflow (escalation handles HUMAN_ACTIVE itself).
+    if workflow_result.new_lead_state is not None and workflow_result.new_lead_state != LeadState.HUMAN_ACTIVE:
+        try:
+            await lead_service.advance_state(db, lead_id=lead.id, to_state=workflow_result.new_lead_state)
+        except Exception:
+            logger.exception(
+                "State transition failed | lead=%s | to_state=%s",
+                lead.id,
+                workflow_result.new_lead_state,
+            )
+
     # Schedule follow-ups based on workflow outcome.
     if workflow_result.new_lead_state == LeadState.POST_VIEWING:
         await followup_service.schedule_post_viewing(db, lead_id=lead.id, now=now)

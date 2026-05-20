@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 # Force testing environment before any app code is imported.
 os.environ.setdefault("ENVIRONMENT", "testing")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/estateflow_test")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:united8@localhost:5432/estateflow_test")
 
 
 @pytest.fixture(scope="session")

@@ -3,6 +3,7 @@ import os
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.database import Base
 
@@ -11,13 +12,14 @@ import app.models.lead  # noqa: F401
 import app.models.listing  # noqa: F401
 import app.models.session  # noqa: F401
 import app.models.conversation  # noqa: F401
+import app.models.follow_up  # noqa: F401
 
 TEST_DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql+asyncpg://user:password@localhost:5432/estateflow_test",
+    "postgresql+asyncpg://postgres:united8@localhost:5432/estateflow_test",
 )
 
-_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 _SessionFactory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
 
