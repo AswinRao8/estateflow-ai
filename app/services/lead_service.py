@@ -62,6 +62,9 @@ async def advance_state(
 ) -> Lead:
     lead = await get_lead(db, lead_id=lead_id)
     from_state = LeadState(lead.state)
+    to_state = LeadState(to_state)  # normalise: accept string, enum, or StrEnum
+    if from_state == to_state:
+        return lead  # no-op: already in target state
     if to_state not in VALID_LEAD_TRANSITIONS.get(from_state, frozenset()):
         raise InvalidStateTransitionError(from_state, to_state)
     lead.state = to_state
@@ -86,8 +89,22 @@ async def release_human(
     db: AsyncSession, *, lead_id: uuid.UUID, to_state: LeadState
 ) -> Lead:
     lead = await get_lead(db, lead_id=lead_id)
-    if LeadState(lead.state) != LeadState.HUMAN_ACTIVE:
-        raise InvalidStateTransitionError(lead.state, to_state)
+    from_state = LeadState(lead.state)
+    to_state = LeadState(to_state)  # normalise: accept string, enum, or StrEnum
+
+    # No-op: lead is already at the target state.
+    # Only succeed if is_human_active is set (stale flag from a data inconsistency);
+    # clear the stale fields and return cleanly.  If the lead has no human control
+    # at all, fall through to the normal HUMAN_ACTIVE guard and raise a 409.
+    if from_state == to_state and lead.is_human_active:
+        lead.is_human_active = False
+        lead.assigned_agent_id = None
+        await db.commit()
+        await db.refresh(lead)
+        return lead
+
+    if from_state != LeadState.HUMAN_ACTIVE:
+        raise InvalidStateTransitionError(from_state, to_state)
     if to_state not in VALID_LEAD_TRANSITIONS[LeadState.HUMAN_ACTIVE]:
         raise InvalidStateTransitionError(LeadState.HUMAN_ACTIVE, to_state)
     lead.state = to_state

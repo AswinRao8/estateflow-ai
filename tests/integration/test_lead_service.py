@@ -137,6 +137,71 @@ async def test_release_human_rejects_invalid_target_state(db, phone):
         )
 
 
+@pytest.mark.asyncio
+async def test_release_human_active_to_viewing_interest(db, phone):
+    """Normal release path: HUMAN_ACTIVE → VIEWING_INTEREST (regression for dashboard bug)."""
+    lead = await lead_service.get_or_create_lead(db, phone_number=phone)
+    await lead_service.advance_state(db, lead_id=lead.id, to_state=LeadState.VIEWING_INTEREST)
+    await lead_service.set_human_active(db, lead_id=lead.id, agent_id="agent-1")
+    released = await lead_service.release_human(
+        db, lead_id=lead.id, to_state=LeadState.VIEWING_INTEREST
+    )
+    assert released.state == LeadState.VIEWING_INTEREST
+    assert released.is_human_active is False
+    assert released.assigned_agent_id is None
+
+
+@pytest.mark.asyncio
+async def test_release_noop_clears_stale_human_fields(db, phone):
+    """No-op release: lead already at target state clears stale is_human_active flag."""
+    lead = await lead_service.get_or_create_lead(db, phone_number=phone)
+    # Simulate data inconsistency: is_human_active=True but state=QUALIFYING
+    lead.state = LeadState.QUALIFYING
+    lead.is_human_active = True
+    lead.assigned_agent_id = "agent-stale"
+    await db.commit()
+
+    result = await lead_service.release_human(
+        db, lead_id=lead.id, to_state=LeadState.QUALIFYING
+    )
+    assert result.state == LeadState.QUALIFYING
+    assert result.is_human_active is False
+    assert result.assigned_agent_id is None
+
+
+@pytest.mark.asyncio
+async def test_advance_state_noop_returns_lead_unchanged(db, phone):
+    """Advancing to the current state is a valid no-op, not an error."""
+    lead = await lead_service.get_or_create_lead(db, phone_number=phone)
+    await lead_service.advance_state(db, lead_id=lead.id, to_state=LeadState.QUALIFYING)
+    result = await lead_service.advance_state(
+        db, lead_id=lead.id, to_state=LeadState.QUALIFYING
+    )
+    assert result.state == LeadState.QUALIFYING
+
+
+@pytest.mark.asyncio
+async def test_advance_state_accepts_raw_string_as_to_state(db, phone):
+    """advance_state normalises plain strings so callers can pass either form."""
+    lead = await lead_service.get_or_create_lead(db, phone_number=phone)
+    result = await lead_service.advance_state(
+        db, lead_id=lead.id, to_state="QUALIFYING"  # type: ignore[arg-type]
+    )
+    assert result.state == LeadState.QUALIFYING
+
+
+@pytest.mark.asyncio
+async def test_release_accepts_raw_string_as_to_state(db, phone):
+    """release_human normalises plain strings so callers can pass either form."""
+    lead = await lead_service.get_or_create_lead(db, phone_number=phone)
+    await lead_service.set_human_active(db, lead_id=lead.id, agent_id="agent-1")
+    released = await lead_service.release_human(
+        db, lead_id=lead.id, to_state="QUALIFYING"  # type: ignore[arg-type]
+    )
+    assert released.state == LeadState.QUALIFYING
+    assert released.is_human_active is False
+
+
 # ---------------------------------------------------------------------------
 # update_qualification
 # ---------------------------------------------------------------------------
