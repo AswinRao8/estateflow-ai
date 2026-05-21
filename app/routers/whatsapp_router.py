@@ -51,20 +51,14 @@ async def receive_inbound_message(
     # back to the key "from" that parse_inbound_payload expects.
     messages = parse_inbound_payload(body.model_dump(by_alias=True))
     for msg in messages:
+        req_id = ""
         try:
-            result = await process_inbound_message(
-                db,
-                message=msg,
-            )
-            if result.is_human_active:
-                logger.info(
-                    "Message from %s held for human agent | lead=%s",
-                    msg.phone_number,
-                    result.lead.id,
-                )
+            result = await process_inbound_message(db, message=msg)
+            req_id = result.req_id
         except Exception:
             logger.exception(
-                "Failed to process inbound message | id=%s | phone=%s",
+                "[%s] Failed to process inbound message | id=%s | phone=%s",
+                req_id or "--------",
                 msg.message_id,
                 msg.phone_number,
             )
