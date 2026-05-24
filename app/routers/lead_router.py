@@ -44,9 +44,18 @@ async def list_leads(
 ) -> APIResponse[list[LeadRead]]:
     leads = await lead_service.list_leads(db, limit=limit, offset=offset)
     logger.info("GET /leads | count=%d", len(leads))
+    validated = []
     for lead in leads:
-        logger.debug("  lead=%s | phone=%s | state=%s", lead.id, lead.phone_number, lead.state)
-    return APIResponse(data=[LeadRead.model_validate(lead) for lead in leads])
+        dto = LeadRead.model_validate(lead)
+        logger.info(
+            "  lead=%s | orm_state=%r (type=%s) | serialized_state=%r",
+            lead.id,
+            lead.state,
+            type(lead.state).__name__,
+            dto.state,
+        )
+        validated.append(dto)
+    return APIResponse(data=validated)
 
 
 @router.get("/{lead_id}", response_model=APIResponse[LeadDetailRead])

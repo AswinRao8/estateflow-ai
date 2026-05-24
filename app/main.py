@@ -16,6 +16,7 @@ from app.routers import agent_router
 from app.routers import session_router
 from app.routers import admin_router
 from app.routers import dashboard_router
+from app.routers import debug_router
 
 logger = get_logger(__name__)
 
@@ -130,6 +131,11 @@ def _register_routers(app: FastAPI, api_prefix: str) -> None:
 
     # Agent dashboard — served at /dashboard (no API prefix, no versioning).
     app.include_router(dashboard_router.router)
+
+    # Raw-SQL diagnostic endpoints — development only, never mounted in production.
+    if get_settings().is_development:
+        app.include_router(debug_router.router)
+        logger.info("Debug router mounted at /debug (development mode)")
 
 
 def _register_exception_handlers(app: FastAPI) -> None:

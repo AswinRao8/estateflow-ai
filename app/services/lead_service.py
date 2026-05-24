@@ -60,6 +60,9 @@ async def list_leads(
 async def advance_state(
     db: AsyncSession, *, lead_id: uuid.UUID, to_state: LeadState
 ) -> Lead:
+    from app.utils.logging import get_logger
+    _log = get_logger(__name__)
+
     lead = await get_lead(db, lead_id=lead_id)
     from_state = LeadState(lead.state)
     to_state = LeadState(to_state)  # normalise: accept string, enum, or StrEnum
@@ -67,12 +70,26 @@ async def advance_state(
         return lead  # no-op: already in target state
     if to_state not in VALID_LEAD_TRANSITIONS.get(from_state, frozenset()):
         raise InvalidStateTransitionError(from_state, to_state)
+    _log.info(
+        "advance_state | lead=%s | %s → %s | orm_id=%d",
+        lead_id, from_state, to_state, id(lead),
+    )
     lead.state = to_state
     if to_state == LeadState.HUMAN_ACTIVE:
         lead.is_human_active = True
     elif from_state == LeadState.HUMAN_ACTIVE:
         lead.is_human_active = False
+    await db.flush()   # generate SQL now so we can verify before COMMIT
+    _log.info("advance_state | flush complete | lead=%s | lead.state=%r", lead_id, lead.state)
     await db.commit()
+    # Refresh forces a SELECT after commit so the Python object matches the DB row.
+    # This guards against expire_on_commit=False leaving stale attribute values in
+    # the identity map when subsequent code (e.g. save_message) shares the session.
+    await db.refresh(lead)
+    _log.info(
+        "advance_state | committed+refreshed | lead=%s | db_state=%r",
+        lead_id, lead.state,
+    )
     return lead
 
 
