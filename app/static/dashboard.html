@@ -298,6 +298,9 @@ let _agentId = localStorage.getItem('ef_agent') || 'agent-1';
 let _releaseLeadId = null;
 let _editListingId = null;
 let _currentLeadId = null;
+let _currentView = 'leads';
+let _pollTimer = null;
+const _POLL_INTERVAL_MS = 5000;
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 
@@ -309,11 +312,35 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('ef_agent', _agentId);
   });
   showView('leads');
+  _startPolling();
 });
+
+function _noModalOpen() {
+  return !document.querySelector('.overlay.open');
+}
+
+function _startPolling() {
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(async () => {
+    if (_currentView === 'leads' && _noModalOpen()) {
+      await _silentRefreshLeads();
+    }
+  }, _POLL_INTERVAL_MS);
+}
+
+async function _silentRefreshLeads() {
+  try {
+    const leads = await apiFetch('/leads');
+    const body = document.getElementById('leadsBody');
+    if (!body || body.querySelector('.loading')) return; // skip if initial load not done
+    _renderLeadsTable(leads, body);
+  } catch (_) { /* silent — don't disrupt the UI on background poll errors */ }
+}
 
 // ── Navigation ─────────────────────────────────────────────────────────────
 
 function showView(name) {
+  _currentView = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
@@ -376,37 +403,41 @@ function closeIfOverlay(e, id) { if (e.target === e.currentTarget) closeModal(id
 
 // ── Leads view ─────────────────────────────────────────────────────────────
 
+function _renderLeadsTable(leads, body) {
+  if (!leads || leads.length === 0) {
+    body.innerHTML = '<div class="empty">No leads yet.</div>';
+    return;
+  }
+  const rows = leads.map(l => `
+    <tr onclick="openLeadDetail('${l.id}')">
+      <td><span style="font-weight:600">${l.phone_number}</span></td>
+      <td>${badge(l.state)}</td>
+      <td>${l.buyer_type ? badge(l.buyer_type) : '<span class="text-muted">—</span>'}</td>
+      <td class="text-muted">${l.source_listing_ref_code || '—'}</td>
+      <td class="text-muted" style="font-size:13px">${fmtRelative(l.updated_at)}</td>
+      <td>${l.is_human_active ? '<span style="color:#991b1b;font-size:12px;font-weight:600">● HUMAN</span>' : '<span style="color:#16a34a;font-size:12px">● AI</span>'}</td>
+      <td onclick="event.stopPropagation()">
+        ${l.is_human_active
+          ? `<button class="btn btn-gray btn-xs" onclick="openReleaseDialog('${l.id}')">Release →</button>`
+          : `<button class="btn btn-primary btn-xs" onclick="takeoverLead('${l.id}')">Take Over</button>`
+        }
+      </td>
+    </tr>`).join('');
+  body.innerHTML = `<table>
+    <thead><tr>
+      <th>Phone</th><th>State</th><th>Buyer Type</th>
+      <th>Source Listing</th><th>Last Activity</th><th>Control</th><th>Action</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
 async function loadLeads() {
   const body = document.getElementById('leadsBody');
   body.innerHTML = '<div class="loading">Loading…</div>';
   try {
     const leads = await apiFetch('/leads');
-    if (!leads || leads.length === 0) {
-      body.innerHTML = '<div class="empty">No leads yet.</div>';
-      return;
-    }
-    const rows = leads.map(l => `
-      <tr onclick="openLeadDetail('${l.id}')">
-        <td><span style="font-weight:600">${l.phone_number}</span></td>
-        <td>${badge(l.state)}</td>
-        <td>${l.buyer_type ? badge(l.buyer_type) : '<span class="text-muted">—</span>'}</td>
-        <td class="text-muted">${l.source_listing_ref_code || '—'}</td>
-        <td class="text-muted" style="font-size:13px">${fmtRelative(l.updated_at)}</td>
-        <td>${l.is_human_active ? '<span style="color:#991b1b;font-size:12px;font-weight:600">● HUMAN</span>' : '<span style="color:#16a34a;font-size:12px">● AI</span>'}</td>
-        <td onclick="event.stopPropagation()">
-          ${l.is_human_active
-            ? `<button class="btn btn-gray btn-xs" onclick="openReleaseDialog('${l.id}')">Release →</button>`
-            : `<button class="btn btn-primary btn-xs" onclick="takeoverLead('${l.id}')">Take Over</button>`
-          }
-        </td>
-      </tr>`).join('');
-    body.innerHTML = `<table>
-      <thead><tr>
-        <th>Phone</th><th>State</th><th>Buyer Type</th>
-        <th>Source Listing</th><th>Last Activity</th><th>Control</th><th>Action</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    _renderLeadsTable(leads, body);
   } catch(e) {
     body.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }

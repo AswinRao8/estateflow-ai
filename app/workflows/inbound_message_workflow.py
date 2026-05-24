@@ -292,10 +292,10 @@ async def process_inbound_message(
             req_id, lead.id, lead.state, workflow_result.new_lead_state,
         )
         try:
-            await lead_service.advance_state(db, lead_id=lead.id, to_state=workflow_result.new_lead_state)
+            lead = await lead_service.advance_state(db, lead_id=lead.id, to_state=workflow_result.new_lead_state)
             logger.info(
                 "[%s] State transition applied | lead=%s | new_state=%s",
-                req_id, lead.id, workflow_result.new_lead_state,
+                req_id, lead.id, lead.state,
             )
         except Exception:
             logger.exception(

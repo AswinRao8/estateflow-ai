@@ -20,8 +20,9 @@ VALID_LEAD_TRANSITIONS: dict[LeadState, frozenset[LeadState]] = {
         LeadState.CONTEXT_IDENTIFIED,
         LeadState.QUALIFYING,
         LeadState.VIEWING_INTEREST,
+        LeadState.VIEWING_SCHEDULED,  # direct booking on first contact
         LeadState.HUMAN_ACTIVE,
-        LeadState.CLOSED_LOST,      # immediate opt-out
+        LeadState.CLOSED_LOST,        # immediate opt-out
     }),
     LeadState.CONTEXT_IDENTIFIED: frozenset({
         LeadState.QUALIFYING,

@@ -26,7 +26,8 @@ def test_new_inquiry_valid_transitions():
     assert LeadState.CONTEXT_IDENTIFIED in allowed
     assert LeadState.QUALIFYING in allowed
     assert LeadState.HUMAN_ACTIVE in allowed
-    assert LeadState.CLOSED_LOST in allowed   # immediate opt-out is valid
+    assert LeadState.CLOSED_LOST in allowed       # immediate opt-out is valid
+    assert LeadState.VIEWING_SCHEDULED in allowed  # direct booking on first contact
     # CLOSED_WON (sale) must not be reachable from first contact
     assert LeadState.CLOSED_WON not in allowed
 

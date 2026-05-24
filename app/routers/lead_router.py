@@ -12,6 +12,9 @@ from app.models.enums import BuyerType, LeadState
 from app.models.follow_up import FollowUpRead
 from app.models.lead import LeadRead
 from app.services import conversation_service, followup_service, lead_service
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/leads", tags=["Leads"])
 
@@ -40,6 +43,9 @@ async def list_leads(
     offset: int = Query(default=0, ge=0),
 ) -> APIResponse[list[LeadRead]]:
     leads = await lead_service.list_leads(db, limit=limit, offset=offset)
+    logger.info("GET /leads | count=%d", len(leads))
+    for lead in leads:
+        logger.debug("  lead=%s | phone=%s | state=%s", lead.id, lead.phone_number, lead.state)
     return APIResponse(data=[LeadRead.model_validate(lead) for lead in leads])
 
 
@@ -52,6 +58,7 @@ async def get_lead(
         lead = await lead_service.get_lead(db, lead_id=lead_id)
     except LeadNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    logger.info("GET /leads/%s | state=%s", lead_id, lead.state)
 
     messages = await conversation_service.get_lead_recent_messages(
         db, lead_id=lead.id, limit=200
