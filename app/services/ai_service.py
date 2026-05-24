@@ -2,8 +2,13 @@
 
 All functions in this module make external API calls via the Anthropic SDK.
 No database access — the caller assembles context before invoking these functions.
+
+When ANTHROPIC_API_KEY is absent, classify_intent falls back to a deterministic
+keyword classifier (_test_mode_classify) so local offline development produces
+visible state transitions without any external dependencies.
 """
 import asyncio
+import re
 from typing import Any
 
 import anthropic
@@ -18,6 +23,105 @@ logger = get_logger(__name__)
 _anthropic_client: anthropic.AsyncAnthropic | None = None
 _CLASSIFICATION_TIMEOUT = 8.0
 _LISTING_RESPONSE_TIMEOUT = 10.0
+
+# ---------------------------------------------------------------------------
+# TEST_MODE keyword classifier — used when ANTHROPIC_API_KEY is absent.
+# Rules are applied in priority order; first match wins.
+# ---------------------------------------------------------------------------
+
+_TM_HUMAN_WORDS = frozenset({"human", "agent", "representative", "staff", "support"})
+_TM_HUMAN_PHRASES = frozenset({"call me", "speak to", "talk to", "connect me"})
+_TM_STOP_WORDS = frozenset({"stop", "unsubscribe", "cancel", "quit", "optout", "opt-out"})
+_TM_BOOKING_PHRASES = frozenset({
+    "book viewing", "schedule viewing", "book a viewing", "schedule a viewing",
+    "book a visit", "schedule a visit", "arrange a viewing", "make an appointment",
+})
+_TM_VIEWING_WORDS = frozenset({"visit", "viewing", "view"})
+_TM_VIEWING_PHRASES = frozenset({"see property", "see the property", "walk through", "have a look"})
+_TM_QUALIFY_WORDS = frozenset({
+    "buy", "buying", "purchase", "looking", "searching",
+    "search", "interested", "need", "want", "find",
+})
+_TM_DATE_RE = re.compile(
+    r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday"
+    r"|tomorrow|today|next\s+week|this\s+week"
+    r"|\d{1,2}[\/\-\.]\d{1,2}"
+    r"|\d{1,2}\s*(?:am|pm)"
+    r"|morning|afternoon|evening|noon)\b",
+    re.IGNORECASE,
+)
+_TM_LISTING_REF_RE = re.compile(r"\b(ref[-\s]?\d+|[A-Z]{2,}-\d+)\b", re.IGNORECASE)
+
+
+def _test_mode_classify(text: str, context: ConversationContext) -> ClassificationResult:
+    """Deterministic keyword classifier for offline development.
+
+    Runs when ANTHROPIC_API_KEY is absent. Returns high-confidence results so
+    the pipeline routes to the correct workflow and produces visible state changes.
+    Priority: human > stop > booking > viewing > listing_ref > qualify > fallback.
+    """
+    lower = text.lower()
+    words = set(re.findall(r"\b\w+\b", lower))
+
+    # 1. Human agent request — always escalate, regardless of other keywords.
+    if (words & _TM_HUMAN_WORDS) or any(ph in lower for ph in _TM_HUMAN_PHRASES):
+        return ClassificationResult(
+            intent=IntentType.HUMAN_REQUESTED,
+            confidence=0.95,
+            reasoning="TEST_MODE: human/agent keyword",
+        )
+
+    # 2. Stop / opt-out.
+    if words & _TM_STOP_WORDS or "not interested" in lower or "leave me alone" in lower:
+        return ClassificationResult(
+            intent=IntentType.OUT_OF_SCOPE,
+            confidence=0.90,
+            reasoning="TEST_MODE: stop/opt-out keyword",
+        )
+
+    # 3. Booking with specific time — higher specificity than generic viewing interest.
+    has_booking = any(ph in lower for ph in _TM_BOOKING_PHRASES)
+    has_datetime = bool(_TM_DATE_RE.search(lower))
+    has_viewing_word = bool(words & _TM_VIEWING_WORDS) or any(ph in lower for ph in _TM_VIEWING_PHRASES)
+    if has_booking or (has_viewing_word and has_datetime):
+        return ClassificationResult(
+            intent=IntentType.VIEWING_REQUEST,
+            confidence=0.92,
+            reasoning="TEST_MODE: viewing booking or time-qualified viewing request",
+        )
+
+    # 4. Generic viewing interest (no specific time).
+    if has_viewing_word:
+        return ClassificationResult(
+            intent=IntentType.VIEWING_REQUEST,
+            confidence=0.88,
+            reasoning="TEST_MODE: viewing interest keyword",
+        )
+
+    # 5. Listing reference in message text or active listing in session.
+    if _TM_LISTING_REF_RE.search(text) or (
+        context.session.listing_ref_code and context.listing is not None
+    ):
+        return ClassificationResult(
+            intent=IntentType.LISTING_INQUIRY,
+            confidence=0.88,
+            reasoning="TEST_MODE: listing reference detected",
+        )
+
+    # 6. Buyer qualification signal.
+    if words & _TM_QUALIFY_WORDS:
+        return ClassificationResult(
+            intent=IntentType.BUYER_QUALIFICATION,
+            confidence=0.88,
+            reasoning="TEST_MODE: qualification keyword",
+        )
+
+    # 7. Fallback — confidence below CONFIDENCE_THRESHOLD (0.65) routes to CLARIFICATION.
+    return ClassificationResult(
+        intent=IntentType.GENERAL_INQUIRY,
+        confidence=0.30,
+        reasoning="TEST_MODE: no keyword match — fallback",
+    )
 _LISTING_FALLBACK_MESSAGE = (
     "I have some details about this property but I'm having a little trouble pulling them "
     "together right now. Could you ask me a specific question and I'll do my best to help?"
@@ -63,7 +167,22 @@ def _get_anthropic_client() -> anthropic.AsyncAnthropic:
 # ---------------------------------------------------------------------------
 
 async def classify_intent(context: ConversationContext) -> ClassificationResult:
-    """Classify the intent of context.current_message via Anthropic tool use."""
+    """Classify the intent of context.current_message.
+
+    When ANTHROPIC_API_KEY is absent the deterministic TEST_MODE keyword
+    classifier is used so local development produces visible state transitions
+    without any external service dependency.
+    """
+    if not get_settings().anthropic_api_key:
+        result = _test_mode_classify(context.current_message, context)
+        logger.info(
+            "TEST_MODE classifier used | lead=%s | intent=%s | confidence=%.2f",
+            context.lead.id,
+            result.intent,
+            result.confidence,
+        )
+        return result
+
     prompt = _build_classification_prompt(context)
     try:
         return await asyncio.wait_for(_call_classification_api(prompt), timeout=_CLASSIFICATION_TIMEOUT)

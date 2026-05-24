@@ -196,7 +196,10 @@ async def test_classify_intent_returns_fallback_on_timeout():
     async def _raise_timeout(*args, **kwargs):
         raise asyncio.TimeoutError()
 
-    with patch("app.services.ai_service.asyncio.wait_for", side_effect=_raise_timeout):
+    with patch("app.services.ai_service.get_settings") as mock_settings, \
+         patch("app.services.ai_service.asyncio.wait_for", side_effect=_raise_timeout):
+        mock_settings.return_value.anthropic_api_key = "sk-test-key"
+        mock_settings.return_value.anthropic_model = "claude-sonnet-4-6"
         result = await classify_intent(ctx)
 
     assert result.intent == IntentType.GENERAL_INQUIRY
@@ -208,11 +211,14 @@ async def test_classify_intent_returns_fallback_on_timeout():
 async def test_classify_intent_returns_fallback_on_api_exception():
     ctx = _fake_context()
 
-    with patch(
-        "app.services.ai_service._call_classification_api",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("API unreachable"),
-    ):
+    with patch("app.services.ai_service.get_settings") as mock_settings, \
+         patch(
+             "app.services.ai_service._call_classification_api",
+             new_callable=AsyncMock,
+             side_effect=RuntimeError("API unreachable"),
+         ):
+        mock_settings.return_value.anthropic_api_key = "sk-test-key"
+        mock_settings.return_value.anthropic_model = "claude-sonnet-4-6"
         result = await classify_intent(ctx)
 
     assert result.intent == IntentType.GENERAL_INQUIRY

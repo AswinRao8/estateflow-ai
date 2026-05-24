@@ -26,9 +26,9 @@ def test_new_inquiry_valid_transitions():
     assert LeadState.CONTEXT_IDENTIFIED in allowed
     assert LeadState.QUALIFYING in allowed
     assert LeadState.HUMAN_ACTIVE in allowed
-    # Must not skip ahead to terminal states
+    assert LeadState.CLOSED_LOST in allowed   # immediate opt-out is valid
+    # CLOSED_WON (sale) must not be reachable from first contact
     assert LeadState.CLOSED_WON not in allowed
-    assert LeadState.CLOSED_LOST not in allowed
 
 
 def test_human_active_can_reach_all_non_terminal_non_new_states():

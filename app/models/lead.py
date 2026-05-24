@@ -21,37 +21,45 @@ VALID_LEAD_TRANSITIONS: dict[LeadState, frozenset[LeadState]] = {
         LeadState.QUALIFYING,
         LeadState.VIEWING_INTEREST,
         LeadState.HUMAN_ACTIVE,
+        LeadState.CLOSED_LOST,      # immediate opt-out
     }),
     LeadState.CONTEXT_IDENTIFIED: frozenset({
         LeadState.QUALIFYING,
         LeadState.MATCHING_PROPERTIES,
         LeadState.HUMAN_ACTIVE,
+        LeadState.CLOSED_LOST,
     }),
     LeadState.QUALIFYING: frozenset({
         LeadState.MATCHING_PROPERTIES,
+        LeadState.VIEWING_INTEREST,  # lead with a specific property in mind
         LeadState.HUMAN_ACTIVE,
         LeadState.FOLLOW_UP,
+        LeadState.CLOSED_LOST,
     }),
     LeadState.MATCHING_PROPERTIES: frozenset({
         LeadState.VIEWING_INTEREST,
         LeadState.QUALIFYING,
         LeadState.HUMAN_ACTIVE,
         LeadState.FOLLOW_UP,
+        LeadState.CLOSED_LOST,
     }),
     LeadState.VIEWING_INTEREST: frozenset({
         LeadState.VIEWING_SCHEDULED,
         LeadState.HUMAN_ACTIVE,
         LeadState.FOLLOW_UP,
+        LeadState.CLOSED_LOST,
     }),
     LeadState.VIEWING_SCHEDULED: frozenset({
         LeadState.POST_VIEWING,
         LeadState.HUMAN_ACTIVE,
         LeadState.FOLLOW_UP,
+        LeadState.CLOSED_LOST,
     }),
     LeadState.POST_VIEWING: frozenset({
         LeadState.NEGOTIATION,
         LeadState.FOLLOW_UP,
         LeadState.HUMAN_ACTIVE,
+        LeadState.CLOSED_LOST,
     }),
     LeadState.NEGOTIATION: frozenset({
         LeadState.HUMAN_ACTIVE,

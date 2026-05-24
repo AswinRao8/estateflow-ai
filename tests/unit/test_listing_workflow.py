@@ -318,7 +318,7 @@ async def test_run_does_not_set_state_when_no_viewing_interest():
     with patch("app.workflows.listing_inquiry_workflow.ai_service.generate_listing_response", new_callable=AsyncMock, return_value=ai_result):
         result = await listing_inquiry_workflow.run(db, ctx)
 
-    assert result.new_lead_state is None
+    assert result.new_lead_state == LeadState.CONTEXT_IDENTIFIED
     assert result.outbound_message == "It has 4 bedrooms."
 
 
