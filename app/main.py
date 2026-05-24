@@ -1,3 +1,5 @@
+import asyncio
+import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -17,18 +19,76 @@ from app.routers import dashboard_router
 
 logger = get_logger(__name__)
 
+_STARTUP_DB_TIMEOUT = 5.0  # seconds — warn but don't block startup
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
-    configure_logging(settings)
-    logger.info(
-        "Starting %s v%s [%s]",
-        settings.app_name,
-        settings.app_version,
-        settings.environment,
-    )
+    # ------------------------------------------------------------------ #
+    # STARTUP — each step is logged explicitly so hangs are immediately
+    # visible. No step is allowed to block indefinitely: external checks
+    # use asyncio.wait_for with _STARTUP_DB_TIMEOUT.
+    # ------------------------------------------------------------------ #
+    try:
+        # Step 1: settings + logging
+        logger.debug("[STARTUP 1/3] Configuring logging...")
+        settings = get_settings()
+        configure_logging(settings)
+        logger.info(
+            "[STARTUP 1/3] Logging configured | app=%s v%s | env=%s | level=%s",
+            settings.app_name,
+            settings.app_version,
+            settings.environment,
+            settings.log_level,
+        )
+
+        # Step 2: DB health check (non-blocking — a failure here is a warning,
+        # not a reason to refuse startup; the app degrades gracefully).
+        logger.info("[STARTUP 2/3] Checking database connectivity (timeout=%ss)...", _STARTUP_DB_TIMEOUT)
+        try:
+            from app.database import check_database_connection
+            reachable = await asyncio.wait_for(
+                check_database_connection(), timeout=_STARTUP_DB_TIMEOUT
+            )
+            if reachable:
+                logger.info("[STARTUP 2/3] Database reachable")
+            else:
+                logger.warning(
+                    "[STARTUP 2/3] Database unreachable — continuing; "
+                    "requests requiring DB will fail until it is available"
+                )
+        except asyncio.TimeoutError:
+            logger.error(
+                "[STARTUP 2/3] Database health check timed out after %ss — "
+                "continuing; check DATABASE_URL and network connectivity",
+                _STARTUP_DB_TIMEOUT,
+            )
+        except Exception:
+            logger.error(
+                "[STARTUP 2/3] Database health check raised an exception — "
+                "continuing; traceback follows\n%s",
+                traceback.format_exc(),
+            )
+
+        # Step 3: ready
+        logger.info(
+            "[STARTUP 3/3] %s v%s [%s] is ready",
+            settings.app_name,
+            settings.app_version,
+            settings.environment,
+        )
+
+    except Exception:
+        # Any unexpected error during startup is logged with full traceback
+        # and re-raised so uvicorn exits cleanly rather than hanging silently.
+        logger.critical(
+            "STARTUP FAILED — unhandled exception:\n%s",
+            traceback.format_exc(),
+        )
+        raise
+
     yield
+
     logger.info("Shutting down %s", settings.app_name)
 
 

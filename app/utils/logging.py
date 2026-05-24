@@ -22,9 +22,10 @@ def configure_logging(settings: Settings) -> None:
     root.handlers.clear()
     root.addHandler(handler)
 
-    # Suppress access log spam; errors still surface.
+    # Suppress per-request access log lines — they're too noisy in dev.
+    # uvicorn.error is intentionally left at root level so startup/shutdown
+    # messages ("Application startup complete." etc.) remain visible.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.error").setLevel(logging.ERROR)
 
 
 def get_logger(name: str) -> logging.Logger:

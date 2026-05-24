@@ -5,7 +5,12 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["Dashboard"])
 
-_HTML = (Path(__file__).parent.parent / "static" / "dashboard.html").read_text(encoding="utf-8")
+_DASHBOARD_PATH = Path(__file__).parent.parent / "static" / "dashboard.html"
+
+try:
+    _HTML: str = _DASHBOARD_PATH.read_text(encoding="utf-8")
+except FileNotFoundError:
+    _HTML = "<h1>Dashboard unavailable — dashboard.html not found</h1>"
 
 
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
